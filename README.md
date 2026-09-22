@@ -220,6 +220,31 @@ row count and a SHA-256 of the CSV, because the table is only valid for the
 Regenerate with `python -m analysis.build_tablebase`. A test rebuilds it and
 compares against the committed file, so it cannot drift from the solver.
 
+### With the Ambassador
+
+`tablebase/heads_up_one_card_with_ambassador.csv.gz` is the same idea for the
+five-card game: every legal position, 340,117 of them, solved by value
+iteration. Read it with `load_ambassador` and `probe_ambassador`.
+
+Three schema changes, all forced by the Exchange:
+
+| Column | |
+|---|---|
+| `dead_cards` | The two revealed cards fix the deck, and so fix every draw. |
+| `drawn` | In `EXCHANGE_RETURN`, what came off the deck *is* the position — the same hand and coins are a certain loss or a certain win depending on it. |
+| `win_probability` | Replaces `result` and `dtm`; values are odds now, and distance to mate does not generalise under chance. |
+
+96.8% of positions are still certain — the Exchange only makes 10,893 of them
+genuinely uncertain, and those are where all the interest is.
+
+Gzipped, because at this size the line-by-line diffability that justified plain
+CSV for the four-card table is out of reach anyway. It is 1.2 MB.
+
+The build runs value iteration from both seeds and refuses to write the file if
+they disagree, so the proof that no line runs forever is a gate rather than
+something checked once. Regenerate with
+`python -m analysis.build_ambassador_tablebase` (about 7 minutes).
+
 ## Tests
 
 ```

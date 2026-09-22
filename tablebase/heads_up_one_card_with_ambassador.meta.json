@@ -1,0 +1,34 @@
+{
+  "game": "Coup, heads-up, one influence each, the Ambassador included",
+  "assumptions": [
+    "both held cards are public",
+    "no player ever claims a character it does not hold",
+    "no player ever challenges (under honest play a challenge only loses)",
+    "an Exchange is resolved in the open, so the cards stay public",
+    "each player has one influence left and one card already revealed"
+  ],
+  "cards": [
+    "Duke",
+    "Assassin",
+    "Captain",
+    "Ambassador",
+    "Contessa"
+  ],
+  "rules": {
+    "mandatory_coup_threshold": 10,
+    "starting_influence": 1,
+    "starting_coins": 0,
+    "two_player_start_handicap": false,
+    "refund_cost_on_caught_bluff": false,
+    "allow_stealing_from_zero": false
+  },
+  "rows": 340117,
+  "states_solved": 663322,
+  "max_coins": 12,
+  "coverage": "every legal position",
+  "value": "win_probability is for the player to move, under perfect play",
+  "method": "value iteration; both seeds agree, so no line runs forever",
+  "seed_agreement": 2.103539564757284e-12,
+  "tolerance": 1e-12,
+  "sha256": "f13619adbb0f1fdf0272d0edc1d37ddc4e558bfae55f9ad4ab5dcb2901c896ee"
+}
