@@ -9,6 +9,7 @@ const PHASE = {
 };
 
 let shard = null;      // the loaded slice of the table
+let manifest = null;   // which file holds which pair of upcards
 let stack = [];        // [{index, label}] -- the line so far
 const $ = (id) => document.getElementById(id);
 
@@ -19,8 +20,20 @@ $("c0").value = "A"; $("c1").value = "A"; $("d0").value = "T"; $("d1").value = "
 
 /* ---- data -------------------------------------------------------------- */
 
+const pairKey = (cards) => [...cards].sort().join("");
+
 async function loadShard(a, b) {
-  const file = [a, b].sort().join("-") + ".json.gz";
+  // Ask the manifest which file holds this pair rather than rebuilding its
+  // name here: the generator names the files, so only it should decide.
+  if (!manifest) {
+    const m = await fetch("data/manifest.json");
+    if (!m.ok) throw new Error(`could not load the data manifest (${m.status})`);
+    manifest = await m.json();
+  }
+  const want = pairKey([a, b]);
+  const entry = manifest.find((e) => pairKey(e.dead) === want);
+  if (!entry) throw new Error(`no data for upcards ${NAME[a]} + ${NAME[b]}`);
+  const file = entry.file;
   const res = await fetch("data/" + file);
   if (!res.ok) throw new Error(`could not load ${file} (${res.status})`);
   const buf = await res.arrayBuffer();
