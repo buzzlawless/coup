@@ -94,9 +94,19 @@ def dead_cards(state: GameState) -> str:
     return "+".join(sorted(str(c) for p in state.players for c in p.revealed))
 
 
+def drawn_cards(state: GameState) -> str:
+    """The cards an Exchange has drawn but not yet resolved.
+
+    Empty everywhere but in EXCHANGE_RETURN, where it is the whole decision:
+    the same hand, coins and dead cards can be a certain win or a certain loss
+    depending only on what came off the deck.
+    """
+    return "+".join(sorted(str(c) for c in state.exchange_drawn))
+
+
 def lookup_key(state: GameState) -> tuple:
-    """``position_key`` plus the dead cards."""
-    return position_key(state) + (dead_cards(state),)
+    """``position_key`` plus the dead cards and any cards drawn."""
+    return position_key(state) + (dead_cards(state), drawn_cards(state))
 
 
 @dataclass(frozen=True)
@@ -148,7 +158,7 @@ def probe(state: GameState, table: dict[tuple, Entry] | None = None) -> Entry:
 
 # --- the five-card table -------------------------------------------------
 
-AMBASSADOR_POSITION_FIELDS = POSITION_FIELDS + ["dead_cards"]
+AMBASSADOR_POSITION_FIELDS = POSITION_FIELDS + ["dead_cards", "drawn"]
 AMBASSADOR_FIELDS = AMBASSADOR_POSITION_FIELDS + ["win_probability", "best_moves"]
 
 
@@ -183,6 +193,7 @@ def load_ambassador(path: Path | str = AMBASSADOR_PATH) -> dict[tuple, Equity]:
                 row["pending_block"],
                 row["pending_block_by"],
                 row["dead_cards"],
+                row["drawn"],
             )
             table[key] = Equity(
                 win_probability=float(row["win_probability"]),

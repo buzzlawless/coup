@@ -145,5 +145,22 @@ def test_ambassador_against_duke_is_exactly_the_odds_of_finding_a_captain(
 def test_the_lookup_key_records_the_dead_cards():
     state = duel(Card.AMBASSADOR, Card.DUKE, dead=(Card.DUKE, Card.CONTESSA))
     assert dead_cards(state) == "Contessa+Duke"
-    assert lookup_key(state)[-1] == "Contessa+Duke"
+    assert lookup_key(state)[-2] == "Contessa+Duke"
     assert lookup_key(state)[:4] == ("Ambassador", "Duke", 0, 0)
+
+
+def test_the_drawn_cards_are_part_of_the_key():
+    """An EXCHANGE_RETURN position is decided by what came off the deck, so two
+    different draws from one position must not collapse onto one entry."""
+    from coup.actions import ActionKind
+    from coup.decisions import ChooseAction, Pass
+    from coup.chance import outcomes
+    from coup.engine import apply
+    from coup.tablebase import drawn_cards
+
+    state = duel(Card.AMBASSADOR, Card.DUKE, dead=(Card.DUKE, Card.DUKE))
+    apply(state, ChooseAction(ActionKind.EXCHANGE))
+    keys = {lookup_key(child) for _p, child in outcomes(state, Pass())}
+    draws = {drawn_cards(child) for _p, child in outcomes(state, Pass())}
+    assert len(keys) == len(draws) > 1  # one key per distinct draw, not one for all
+    assert all(d for d in draws)
