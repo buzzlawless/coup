@@ -49,6 +49,14 @@ def test_the_page_never_rebuilds_a_file_name():
     assert '.sort().join("-")' not in app
 
 
+def test_quick_game_deals_from_a_real_deck():
+    """Picking each card independently would deal four of a character; dealing
+    off one fifteen-card deck keeps the copy limits by construction."""
+    app = (OUT.parent / "app.js").read_text()
+    assert "function deal(" in app
+    assert "for (let i = 0; i < 3; i++) deck.push(c)" in app
+
+
 def test_play_mode_rolls_the_deck_and_locks_the_other_side():
     """Choosing a draw is exploring; playing means the deck decides. And the
     automatic side's moves must not be clickable, or you play its turn."""

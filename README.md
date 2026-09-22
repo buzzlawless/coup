@@ -251,6 +251,11 @@ something checked once. Regenerate with
 both upcards and both coin balances, then play forward ply by ply. Every move
 is listed with its exact win probability.
 
+**Quick game** deals a random position and starts it against the solver: four
+cards off one fifteen-card deck — two held, two already lost — 0 coins each,
+and a coin flip for which side the solver takes, so you move first only half
+the time.
+
 It runs in one of two modes. **Exploring**, you choose every branch for both
 sides, and at a chance node you pick the draw rather than rolling it.
 **Playing**, one side is automatic: it takes the highest-EV move every time,

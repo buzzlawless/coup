@@ -249,7 +249,30 @@ $("swap").onclick = () => {
   $("c1").value = c; $("n1").value = n;
 };
 
-$("start").onclick = async () => {
+/** Deal n cards off a real 15-card deck, so the copy limits hold by construction. */
+function deal(n) {
+  const deck = [];
+  for (const c of CODES) for (let i = 0; i < 3; i++) deck.push(c);
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck.slice(0, n);
+}
+
+$("quick").onclick = () => {
+  // Two cards held and two already lost, dealt together off one deck: the
+  // upcards are whatever the players lost, not an independent choice.
+  const [c0, c1, d0, d1] = deal(4);
+  $("c0").value = c0; $("c1").value = c1;
+  $("d0").value = d0; $("d1").value = d1;
+  $("n0").value = 0; $("n1").value = 0;
+  // whether you move first is part of the deal too
+  $("auto").value = String(Math.random() < 0.5 ? 0 : 1);
+  beginGame();
+};
+
+const beginGame = async () => {
   const c0 = $("c0").value, c1 = $("c1").value, d0 = $("d0").value, d1 = $("d1").value;
   const n0 = Number($("n0").value), n1 = Number($("n1").value);
   const err = $("err");
@@ -279,3 +302,5 @@ $("start").onclick = async () => {
   render();
   maybeAutoPlay();
 };
+
+$("start").onclick = beginGame;

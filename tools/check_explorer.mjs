@@ -108,6 +108,34 @@ if (!theirs.every((h) => h.startsWith("P2"))) { failures++; console.log("  FAIL 
 if (!finished) { failures++; console.log("  FAIL play mode did not reach a result"); }
 console.log(`play mode: ${plies.length} plies, ${theirs.length} automatic, result reached: ${finished}`);
 
+/* 4. quick game: a legal random deal every time, at 0/0, one side automatic */
+let quickBad = 0;
+const deals = new Set(); const seats = new Set();
+for (let n = 0; n < 30; n++) {
+  await page.evaluate(() => {
+    const g = document.getElementById("game");
+    if (!g.hidden) document.getElementById("reset").click();
+  });
+  await page.click("#quick");
+  try { await page.waitForSelector("#moves li.move", { timeout: 8000 }); }
+  catch { quickBad++; console.log("  FAIL quick game:", (await page.textContent("#err")).trim()); continue; }
+  const seatInfo = await page.$$eval(".seat", (ss) => ss.map((s) => ({
+    card: s.querySelector(".card").textContent,
+    coins: s.querySelector(".coins").textContent,
+    auto: /automatic/.test(s.querySelector(".who").textContent),
+  })));
+  // Read the deal, not the board: when the solver has the first seat it has
+  // already moved by now, so the board is legitimately past 0/0.
+  const dealt = await page.$$eval("#n0, #n1", (is) => is.map((i) => i.value));
+  if (!dealt.every((v) => v === "0")) { quickBad++; console.log("  FAIL quick game did not deal 0/0", dealt); }
+  if (seatInfo.filter((s) => s.auto).length !== 1) { quickBad++; console.log("  FAIL quick game has no single automatic side"); }
+  seats.add(seatInfo.findIndex((s) => s.auto));
+  deals.add(seatInfo.map((s) => s.card).join("/") + (await page.textContent("#meta")).match(/upcards [^·]*/)[0]);
+}
+failures += quickBad;
+if (seats.size < 2) { failures++; console.log("  FAIL quick game always gives the same side to the solver"); }
+console.log(`quick games: 30 deals, ${quickBad} failures, ${deals.size} distinct, both seats used: ${seats.size === 2}`);
+
 if (errors.length) { failures++; console.log("page errors:", errors); }
 console.log(failures ? `\n${failures} FAILURES` : "\nall checks passed");
 await browser.close();
