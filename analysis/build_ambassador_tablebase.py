@@ -25,6 +25,7 @@ from pathlib import Path
 
 from coup import Card, RuleConfig, new_game
 from coup.stochastic import TOLERANCE, best_moves, build, evaluate
+from coup.tablebase import AMBASSADOR_FIELDS, AMBASSADOR_POSITION_FIELDS
 
 CARDS = list(Card)
 
@@ -41,20 +42,6 @@ MAX_COINS = 12
 OUT_DIR = Path(__file__).resolve().parent.parent / "tablebase"
 CSV_PATH = OUT_DIR / "heads_up_one_card_with_ambassador.csv.gz"
 META_PATH = OUT_DIR / "heads_up_one_card_with_ambassador.meta.json"
-
-POSITION_FIELDS = [
-    "to_act_card",
-    "opponent_card",
-    "to_act_coins",
-    "opponent_coins",
-    "phase",
-    "pending_action",
-    "pending_action_by",
-    "pending_block",
-    "pending_block_by",
-    "dead_cards",
-]
-FIELDS = POSITION_FIELDS + ["win_probability", "best_moves"]
 
 #: Values are rounded here for output and for the collision check.  Value
 #: iteration settles far tighter than this, so the digits printed are real.
@@ -94,7 +81,7 @@ def build_rows(nodes) -> list[dict]:
         # (1 - 1.0000000000000002 is a negative zero).  A probability in a
         # published table should not be negative, however slightly.
         mover_value = min(1.0, max(0.0, mover_value))
-        row = dict(zip(POSITION_FIELDS, node.key))
+        row = dict(zip(AMBASSADOR_POSITION_FIELDS, node.key))
         row["win_probability"] = f"{round(mover_value, DIGITS):.{DIGITS}f}"
         row["best_moves"] = "|".join(best_moves(nodes, key))
 
@@ -133,7 +120,7 @@ def main() -> None:
     rows = build_rows(nodes)
     OUT_DIR.mkdir(exist_ok=True)
     with gzip.open(CSV_PATH, "wt", newline="", compresslevel=9) as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDS)
+        writer = csv.DictWriter(handle, fieldnames=AMBASSADOR_FIELDS)
         writer.writeheader()
         writer.writerows(rows)
 
