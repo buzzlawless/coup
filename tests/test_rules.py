@@ -138,12 +138,19 @@ def test_steal_is_capped_at_the_targets_balance():
     assert (state.players[0].coins, state.players[1].coins) == (3, 0)
 
 
-def test_stealing_from_zero_can_be_forbidden():
-    config = RuleConfig(allow_stealing_from_zero=False)
+def test_a_penniless_player_cannot_be_stolen_from():
+    state = game([[Card.CAPTAIN, Card.DUKE], [Card.DUKE, Card.DUKE]], coins=[2, 0])
+    assert ChooseAction(ActionKind.STEAL, 1) not in legal_decisions(state)
+
+
+def test_stealing_from_zero_can_be_allowed():
+    config = RuleConfig(allow_stealing_from_zero=True)
     state = game(
         [[Card.CAPTAIN, Card.DUKE], [Card.DUKE, Card.DUKE]], coins=[2, 0], config=config
     )
-    assert ChooseAction(ActionKind.STEAL, 1) not in legal_decisions(state)
+    assert ChooseAction(ActionKind.STEAL, 1) in legal_decisions(state)
+    run(state, ChooseAction(ActionKind.STEAL, 1), Pass(), Pass())
+    assert state.players[0].coins == 2  # legal, but gains nothing
 
 
 # --- challenges -----------------------------------------------------------
@@ -195,20 +202,22 @@ def test_a_target_who_loses_a_challenge_may_still_block():
     assert state.players[1].influence == [Card.CONTESSA]  # survived on one card
 
 
-def test_assassination_fee_is_refunded_when_the_assassin_is_caught():
+def test_a_caught_assassin_loses_the_fee_as_well_as_an_influence():
+    """The 3 coins buy the attempt, not the kill, so a caught bluff eats both."""
     state = game([[Card.DUKE, Card.DUKE], [Card.CAPTAIN, Card.CAPTAIN]], coins=[3, 2])
     run(state, ChooseAction(ActionKind.ASSASSINATE, 1), Challenge(), Discard(Card.DUKE))
-    assert state.players[0].coins == 3
+    assert state.players[0].coins == 0
+    assert state.players[0].revealed == [Card.DUKE]
     assert len(state.players[1].influence) == 2  # assassination never happened
 
 
-def test_assassination_fee_refund_can_be_switched_off():
-    config = RuleConfig(refund_cost_on_caught_bluff=False)
+def test_assassination_fee_refund_can_be_switched_on():
+    config = RuleConfig(refund_cost_on_caught_bluff=True)
     state = game(
         [[Card.DUKE, Card.DUKE], [Card.CAPTAIN, Card.CAPTAIN]], coins=[3, 2], config=config
     )
     run(state, ChooseAction(ActionKind.ASSASSINATE, 1), Challenge(), Discard(Card.DUKE))
-    assert state.players[0].coins == 0
+    assert state.players[0].coins == 3
 
 
 # --- blocks ---------------------------------------------------------------

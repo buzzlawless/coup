@@ -58,20 +58,24 @@ class LossCause(IntEnum):
 class RuleConfig:
     """Points where published rulings and house rules disagree.
 
-    The defaults are the ones most commonly played; they are exposed because
-    two of them change the payoff of a bluff and so change the equilibrium.
+    These are exposed rather than baked in because two of them change the
+    payoff of a bluff, and so change the equilibrium -- they are worth being
+    able to flip and re-solve.
     """
 
     #: A player starting their turn with this many coins must Coup.
     mandatory_coup_threshold: int = 10
     #: In a two-player game the starting player begins with 1 coin, not 2.
     two_player_start_handicap: bool = True
-    #: Assassinate costs 3 coins on declaration.  If the assassin is caught
-    #: bluffing the action never happened, so the fee comes back.  (A fee lost
-    #: to a *Contessa block* is never refunded -- that is not in dispute.)
-    refund_cost_on_caught_bluff: bool = True
-    #: Whether Steal may target a player holding no coins (it gains nothing).
-    allow_stealing_from_zero: bool = True
+    #: Assassinate costs 3 coins on declaration.  The fee is paid to *attempt*
+    #: the hit, so an assassin caught bluffing does not get it back -- a caught
+    #: bluff costs an influence and the whole 3 coins.  Set True for the reading
+    #: that a cancelled action should never have been charged for.  (A fee lost
+    #: to a *Contessa block* is never refunded either way.)
+    refund_cost_on_caught_bluff: bool = False
+    #: Whether Steal may target a player holding no coins.  It would gain
+    #: nothing, so the move is not offered.
+    allow_stealing_from_zero: bool = False
 
 
 @dataclass

@@ -72,13 +72,14 @@ step. A loop that already picks its move *from* `legal_decisions` can pass
 
 ## Rulings that vary between tables
 
-Published rulings genuinely disagree on these, and two of them change the payoff
-of a bluff, so they are `RuleConfig` flags rather than baked in:
+Published rulings genuinely disagree on these. They are `RuleConfig` flags
+rather than baked in because two of them change the payoff of a bluff, and so
+change the equilibrium — they are worth being able to flip and re-solve:
 
 | Flag | Default | |
 |---|---|---|
-| `refund_cost_on_caught_bluff` | `True` | The 3 coins come back if the assassin is caught bluffing (the action never happened). A fee lost to a *Contessa block* is never refunded — that much is not in dispute. |
-| `allow_stealing_from_zero` | `True` | Whether Steal may target a player with no coins. |
+| `refund_cost_on_caught_bluff` | `False` | The 3 coins buy the *attempt*, so an assassin caught bluffing loses an influence **and** the whole fee. Set `True` for the reading that a cancelled action should never have been charged for. A fee lost to a *Contessa block* is never refunded either way. |
+| `allow_stealing_from_zero` | `False` | Steal is not offered against a player with no coins, since it would gain nothing. |
 | `two_player_start_handicap` | `True` | In a 2-player game the starting player begins with 1 coin. |
 | `mandatory_coup_threshold` | `10` | Coins at which Coup becomes the only legal action. |
 
@@ -118,5 +119,6 @@ python -m pytest tests -q
 ```
 
 Weighted towards the cases naive implementations get wrong: double influence
-loss from a failed challenge against an assassin, bluffed blocks, fee refunds,
-exchange on one influence, and card conservation across random play.
+loss from a failed challenge against an assassin, bluffed blocks, the
+assassination fee, exchange on one influence, and card conservation across
+random play.
