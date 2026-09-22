@@ -65,6 +65,11 @@ class RuleConfig:
 
     #: A player starting their turn with this many coins must Coup.
     mandatory_coup_threshold: int = 10
+    #: Cards dealt to each player.  Lowering it to 1 gives the reduced game
+    #: that is small enough to solve exactly.
+    starting_influence: int = 2
+    #: Coins each player is dealt.
+    starting_coins: int = 2
     #: In a two-player game the starting player begins with 1 coin, not 2.
     two_player_start_handicap: bool = True
     #: Assassinate costs 3 coins on declaration.  The fee is paid to *attempt*

@@ -112,6 +112,18 @@ the injected `rng`, which suits sampling methods directly; turning those three
 sites into explicit chance nodes for exact traversal is a change localized to
 that one function.
 
+## Analysis
+
+`coup/solve.py` solves small positions exactly by retrograde analysis. The
+state graph has **cycles** — a blocked action changes nothing, so a player can
+pass in all but name — which is why it is a breadth-first sweep back from the
+terminals rather than minimax: a state that never resolves is a draw by
+infinite play.
+
+`analysis/heads_up_one_card.py` uses it on the reduced game: two players, one
+influence each, 0 coins, both cards public, nobody bluffs (so nobody
+challenges), no Ambassador. Run it with `python -m analysis.heads_up_one_card`.
+
 ## Tests
 
 ```

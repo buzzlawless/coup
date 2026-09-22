@@ -40,8 +40,6 @@ from .state import (
 
 MIN_PLAYERS = 2
 MAX_PLAYERS = 6
-STARTING_COINS = 2
-STARTING_INFLUENCE = 2
 
 
 class IllegalDecision(Exception):
@@ -57,7 +55,14 @@ def new_game(
     num_players: int,
     rng: random.Random | None = None,
     config: RuleConfig | None = None,
+    hands: list[list[Card]] | None = None,
 ) -> GameState:
+    """Deal a game.
+
+    ``hands`` deals a chosen set of cards instead of a random one, which is how
+    a fixed matchup is set up for analysis.  It must give every player exactly
+    ``config.starting_influence`` cards, all available in the deck.
+    """
     if not MIN_PLAYERS <= num_players <= MAX_PLAYERS:
         raise ValueError(f"Coup is for {MIN_PLAYERS}-{MAX_PLAYERS} players")
     rng = rng or random.Random()
@@ -65,14 +70,32 @@ def new_game(
 
     state = GameState(
         config=config,
-        players=[PlayerState(seat, coins=STARTING_COINS) for seat in range(num_players)],
+        players=[
+            PlayerState(seat, coins=config.starting_coins) for seat in range(num_players)
+        ],
         deck=list(FULL_DECK),
     )
-    for player in state.players:
-        for _ in range(STARTING_INFLUENCE):
-            player.influence.append(_draw(state, rng))
+
+    if hands is None:
+        for player in state.players:
+            for _ in range(config.starting_influence):
+                player.influence.append(_draw(state, rng))
+    else:
+        if len(hands) != num_players:
+            raise ValueError("hands must cover every player")
+        for player, hand in zip(state.players, hands):
+            if len(hand) != config.starting_influence:
+                raise ValueError(
+                    f"each hand must hold {config.starting_influence} cards"
+                )
+            for card in hand:
+                if card not in state.deck:
+                    raise ValueError(f"no {card} left in the deck to deal")
+                state.deck.remove(card)
+                player.influence.append(card)
+
     if num_players == MIN_PLAYERS and config.two_player_start_handicap:
-        state.players[0].coins = 1
+        state.players[0].coins = max(0, config.starting_coins - 1)
 
     state.phase = Phase.ACTION
     state.turn = 0
