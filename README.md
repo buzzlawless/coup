@@ -245,6 +245,28 @@ they disagree, so the proof that no line runs forever is a gate rather than
 something checked once. Regenerate with
 `python -m analysis.build_ambassador_tablebase` (about 7 minutes).
 
+## Explorer (GitHub Pages)
+
+`docs/` is a static page for walking the solved game by hand: pick both cards,
+both upcards and both coin balances, then play forward ply by ply. Every move
+is listed with its exact win probability, and you choose the branch — for
+either side, and at chance nodes you pick the draw rather than rolling it.
+
+To publish it: **Settings → Pages → Source: Deploy from a branch → `main` /
+`docs`**. It is plain HTML, CSS and JSON; there is no build step.
+
+The page carries no rules of its own. Each position in the data ships with its
+moves, their EVs and the index of where each one leads, all generated from the
+solver — so the page cannot disagree with it about what is legal or what
+anything is worth.
+
+The upcards cannot change inside a game (with one influence, revealing a card
+ends it), so each pair of upcards is a closed subgame shipped as its own file.
+The page downloads one of the fifteen, about 370 KB, rather than the whole
+table.
+
+Regenerate with `python -m analysis.build_web_data` (about 4 minutes).
+
 ## Tests
 
 ```

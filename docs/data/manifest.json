@@ -1,0 +1,122 @@
+[
+ {
+  "dead": [
+   "D",
+   "D"
+  ],
+  "file": "D-D.json.gz",
+  "positions": 43125
+ },
+ {
+  "dead": [
+   "D",
+   "S"
+  ],
+  "file": "D-S.json.gz",
+  "positions": 46201
+ },
+ {
+  "dead": [
+   "D",
+   "C"
+  ],
+  "file": "D-C.json.gz",
+  "positions": 46201
+ },
+ {
+  "dead": [
+   "D",
+   "A"
+  ],
+  "file": "D-A.json.gz",
+  "positions": 44441
+ },
+ {
+  "dead": [
+   "D",
+   "T"
+  ],
+  "file": "D-T.json.gz",
+  "positions": 46201
+ },
+ {
+  "dead": [
+   "S",
+   "S"
+  ],
+  "file": "S-S.json.gz",
+  "positions": 43175
+ },
+ {
+  "dead": [
+   "S",
+   "C"
+  ],
+  "file": "S-C.json.gz",
+  "positions": 46211
+ },
+ {
+  "dead": [
+   "S",
+   "A"
+  ],
+  "file": "S-A.json.gz",
+  "positions": 44451
+ },
+ {
+  "dead": [
+   "S",
+   "T"
+  ],
+  "file": "S-T.json.gz",
+  "positions": 46211
+ },
+ {
+  "dead": [
+   "C",
+   "C"
+  ],
+  "file": "C-C.json.gz",
+  "positions": 43024
+ },
+ {
+  "dead": [
+   "C",
+   "A"
+  ],
+  "file": "C-A.json.gz",
+  "positions": 44451
+ },
+ {
+  "dead": [
+   "C",
+   "T"
+  ],
+  "file": "C-T.json.gz",
+  "positions": 46211
+ },
+ {
+  "dead": [
+   "A",
+   "A"
+  ],
+  "file": "A-A.json.gz",
+  "positions": 36734
+ },
+ {
+  "dead": [
+   "A",
+   "T"
+  ],
+  "file": "A-T.json.gz",
+  "positions": 44451
+ },
+ {
+  "dead": [
+   "T",
+   "T"
+  ],
+  "file": "T-T.json.gz",
+  "positions": 43714
+ }
+]
