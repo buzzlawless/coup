@@ -9,7 +9,8 @@ import pytest
 
 from coup import Card, RuleConfig, new_game
 from coup.solve import Value, solve, truthful_decisions
-from coup.stochastic import build, dead_cards, evaluate, lookup_key, win_probability
+from coup.stochastic import build, evaluate, win_probability
+from coup.tablebase import dead_cards, lookup_key
 
 CONFIG = RuleConfig(starting_influence=1, starting_coins=0, two_player_start_handicap=False)
 

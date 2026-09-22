@@ -13,6 +13,7 @@ cannot drift apart.
 from __future__ import annotations
 
 import csv
+import gzip
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,7 +21,10 @@ from .decisions import Block, ChooseAction, Discard, ExchangeReturn, Pass
 from .engine import to_act
 from .state import GameState
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent / "tablebase" / "heads_up_one_card.csv"
+_TABLES = Path(__file__).resolve().parent.parent / "tablebase"
+DEFAULT_PATH = _TABLES / "heads_up_one_card.csv"
+#: The five-card table, where the Exchange makes values probabilities.
+AMBASSADOR_PATH = _TABLES / "heads_up_one_card_with_ambassador.csv.gz"
 
 POSITION_FIELDS = [
     "to_act_card",
@@ -79,6 +83,22 @@ def position_key(state: GameState) -> tuple:
     )
 
 
+def dead_cards(state: GameState) -> str:
+    """The two revealed cards, which fix the deck and so every draw probability.
+
+    A player down to one influence has revealed the other, face up and out of
+    the deck.  In the Ambassador-free game nothing reads the deck, so this
+    cannot affect play and ``position_key`` rightly leaves it out; once an
+    Exchange is possible it decides the odds and has to be part of the key.
+    """
+    return "+".join(sorted(str(c) for p in state.players for c in p.revealed))
+
+
+def lookup_key(state: GameState) -> tuple:
+    """``position_key`` plus the dead cards."""
+    return position_key(state) + (dead_cards(state),)
+
+
 @dataclass(frozen=True)
 class Entry:
     #: "win" or "loss", for the player to move.
@@ -121,6 +141,63 @@ def probe(state: GameState, table: dict[tuple, Entry] | None = None) -> Entry:
     if table is None:
         table = load()
     key = position_key(state)
+    if key not in table:
+        raise KeyError(f"position not in the table: {key}")
+    return table[key]
+
+
+# --- the five-card table -------------------------------------------------
+
+AMBASSADOR_POSITION_FIELDS = POSITION_FIELDS + ["dead_cards"]
+AMBASSADOR_FIELDS = AMBASSADOR_POSITION_FIELDS + ["win_probability", "best_moves"]
+
+
+@dataclass(frozen=True)
+class Equity:
+    """A solved position in the game with the Ambassador in it."""
+
+    #: Probability the player to move wins, under perfect play by both.
+    win_probability: float
+    #: Every move sharing that value; where there are several they are
+    #: genuinely interchangeable.
+    best_moves: tuple[str, ...]
+
+    @property
+    def certain(self) -> bool:
+        """True where the Exchange cannot change the outcome either way."""
+        return self.win_probability in (0.0, 1.0)
+
+
+def load_ambassador(path: Path | str = AMBASSADOR_PATH) -> dict[tuple, Equity]:
+    table: dict[tuple, Equity] = {}
+    with gzip.open(path, "rt", newline="") as handle:
+        for row in csv.DictReader(handle):
+            key = (
+                row["to_act_card"],
+                row["opponent_card"],
+                int(row["to_act_coins"]),
+                int(row["opponent_coins"]),
+                row["phase"],
+                row["pending_action"],
+                row["pending_action_by"],
+                row["pending_block"],
+                row["pending_block_by"],
+                row["dead_cards"],
+            )
+            table[key] = Equity(
+                win_probability=float(row["win_probability"]),
+                best_moves=tuple(row["best_moves"].split("|")),
+            )
+    return table
+
+
+def probe_ambassador(
+    state: GameState, table: dict[tuple, Equity] | None = None
+) -> Equity:
+    """Look up a live position in the five-card table."""
+    if table is None:
+        table = load_ambassador()
+    key = lookup_key(state)
     if key not in table:
         raise KeyError(f"position not in the table: {key}")
     return table[key]

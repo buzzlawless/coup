@@ -28,23 +28,7 @@ from .chance import outcomes
 from .engine import to_act
 from .solve import state_key, truthful_decisions
 from .state import GameState
-from .tablebase import describe, position_key
-
-def dead_cards(state: GameState) -> str:
-    """The two revealed cards, which fix the deck and so every draw probability.
-
-    A player down to one influence has revealed the other, face up and out of
-    the deck.  In the Ambassador-free game nothing reads the deck, so this
-    cannot affect play and ``position_key`` rightly leaves it out; once an
-    Exchange is possible it decides the odds and has to be part of the key.
-    """
-    return "+".join(sorted(str(c) for p in state.players for c in p.revealed))
-
-
-def lookup_key(state: GameState) -> tuple:
-    """``position_key`` plus the dead cards."""
-    return position_key(state) + (dead_cards(state),)
-
+from .tablebase import describe, lookup_key
 
 #: Absolute convergence bound on the value of every position.
 TOLERANCE = 1e-12

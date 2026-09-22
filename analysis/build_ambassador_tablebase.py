@@ -90,6 +90,10 @@ def build_rows(nodes) -> list[dict]:
         if node.terminal:
             continue  # nothing to look up once the game is decided
         mover_value = node.value if node.mover == 0 else 1.0 - node.value
+        # Accumulated float error can leave a value a hair outside [0, 1]
+        # (1 - 1.0000000000000002 is a negative zero).  A probability in a
+        # published table should not be negative, however slightly.
+        mover_value = min(1.0, max(0.0, mover_value))
         row = dict(zip(POSITION_FIELDS, node.key))
         row["win_probability"] = f"{round(mover_value, DIGITS):.{DIGITS}f}"
         row["best_moves"] = "|".join(best_moves(nodes, key))
