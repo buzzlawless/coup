@@ -130,6 +130,57 @@ cannot resolve is therefore a finding or a bug, and `solve` raises
 influence each, 0 coins, both cards public, nobody bluffs (so nobody
 challenges), no Ambassador. Run it with `python -m analysis.heads_up_one_card`.
 
+## Tablebase
+
+`tablebase/heads_up_one_card.csv` is the solved table for the reduced game:
+every position reachable from any of the sixteen openings, 6,981 of them, with
+who wins, in how many plies, and every move that achieves it.
+
+```python
+from coup import Card, new_game
+from coup.tablebase import load, probe
+from analysis.build_tablebase import CONFIG
+
+table = load()
+probe(new_game(2, config=CONFIG, hands=[[Card.ASSASSIN], [Card.CAPTAIN]]), table)
+# Entry(result='loss', dtm=22, best_moves=('Foreign Aid',))
+```
+
+Rows are written from the point of view of **the player to move**, which
+collapses the seat symmetry: a Duke on 3 coins facing a Captain on 5 is one
+position, not two. The builder asserts that projection is injective, so a
+schema that lost a distinguishing field would fail the build rather than emit a
+table that is quietly wrong.
+
+| Column | |
+|---|---|
+| `to_act_card`, `opponent_card` | the two cards, mover first |
+| `to_act_coins`, `opponent_coins` | banks, mover first |
+| `phase` | `ACTION`, `BLOCK`, `ACTION_CHALLENGE`, `BLOCK_CHALLENGE`, `LOSE_INFLUENCE` |
+| `pending_action`, `pending_action_by` | the action on the table, and whether it is the mover's (`self`/`opponent`) |
+| `pending_block`, `pending_block_by` | likewise for a declared block |
+| `result` | `win` or `loss`, **for the player to move** |
+| `dtm` | plies to the end; a ply is one decision, so a turn spans several |
+| `best_moves` | `\|`-separated, all tying for best — quickest win, or slowest loss |
+
+Terminal positions are not stored: there is nothing to look up once the game is
+decided.
+
+**Why CSV.** Real chess tablebases are binary because they are terabytes and
+have to be mmapped and compressed; at 430 KB none of that applies. What does
+apply is that this is a build product that has to stay trustworthy: CSV diffs
+line by line in git, so flipping a `RuleConfig` flag shows exactly which
+positions changed value instead of producing an opaque new blob. It also loads
+with no dependency at all — `csv`, pandas, SQLite's `.import`, or a
+spreadsheet. Rows are sorted deterministically so the diff is meaningful.
+
+`tablebase/heads_up_one_card.meta.json` records the rules, the assumptions, the
+row count and a SHA-256 of the CSV, because the table is only valid for the
+`RuleConfig` it was solved under.
+
+Regenerate with `python -m analysis.build_tablebase`. A test rebuilds it and
+compares against the committed file, so it cannot drift from the solver.
+
 ## Tests
 
 ```

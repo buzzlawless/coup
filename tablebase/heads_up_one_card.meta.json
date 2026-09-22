@@ -1,0 +1,27 @@
+{
+  "game": "Coup, heads-up, one influence each, 0 starting coins",
+  "assumptions": [
+    "both cards are public",
+    "no player ever claims a character it does not hold",
+    "no player ever challenges (under honest play a challenge only loses)",
+    "the Ambassador is excluded"
+  ],
+  "cards": [
+    "Duke",
+    "Assassin",
+    "Captain",
+    "Contessa"
+  ],
+  "rules": {
+    "mandatory_coup_threshold": 10,
+    "starting_influence": 1,
+    "starting_coins": 0,
+    "two_player_start_handicap": false,
+    "refund_cost_on_caught_bluff": false,
+    "allow_stealing_from_zero": false
+  },
+  "rows": 6981,
+  "perspective": "every row is written from the point of view of the player to move",
+  "dtm": "plies to the end of the game, counting every decision including response windows",
+  "sha256": "9525bbc9c734cd28cc96d001d679120971d958de902b50c63458c214f7d8dd25"
+}

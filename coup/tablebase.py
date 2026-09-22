@@ -1,0 +1,126 @@
+"""Reading the solved-position tables in ``tablebase/``.
+
+A tablebase answers any position, not just an opening: given a position it
+returns who wins, in how many plies, and every move that achieves it.
+
+Positions are keyed from the point of view of **the player to move**, so a Duke
+on 3 coins facing a Captain on 5 is a single entry however the seats happen to
+be numbered.  ``position_key`` is the single definition of that key -- the
+builder writes rows with it and ``probe`` looks them up with it, so the two
+cannot drift apart.
+"""
+
+from __future__ import annotations
+
+import csv
+from dataclasses import dataclass
+from pathlib import Path
+
+from .decisions import Block, ChooseAction, Discard, ExchangeReturn, Pass
+from .engine import to_act
+from .state import GameState
+
+DEFAULT_PATH = Path(__file__).resolve().parent.parent / "tablebase" / "heads_up_one_card.csv"
+
+POSITION_FIELDS = [
+    "to_act_card",
+    "opponent_card",
+    "to_act_coins",
+    "opponent_coins",
+    "phase",
+    "pending_action",
+    "pending_action_by",
+    "pending_block",
+    "pending_block_by",
+]
+RESULT_FIELDS = ["result", "dtm", "best_moves"]
+FIELDS = POSITION_FIELDS + RESULT_FIELDS
+
+
+def describe(decision) -> str:
+    """The move as it is written in the table."""
+    if isinstance(decision, ChooseAction):
+        return str(decision.kind)
+    if isinstance(decision, Block):
+        return f"block {decision.character}"
+    if isinstance(decision, Pass):
+        return "pass"
+    if isinstance(decision, Discard):
+        return f"reveal {decision.card}"
+    if isinstance(decision, ExchangeReturn):
+        return "exchange " + "+".join(str(c) for c in decision.keep)
+    return repr(decision)
+
+
+def position_key(state: GameState) -> tuple:
+    """The lookup key for a live position, relative to the player to move."""
+    mover = to_act(state)
+    if mover is None:
+        raise ValueError("the game is over; there is nothing to look up")
+    if len(state.players) != 2:
+        raise ValueError("the table covers heads-up positions only")
+    opponent = 1 - mover
+    for seat in (mover, opponent):
+        if len(state.players[seat].influence) != 1:
+            raise ValueError("the table covers one-influence positions only")
+
+    action = state.pending_action
+    block = state.pending_block
+    return (
+        str(state.players[mover].influence[0]),
+        str(state.players[opponent].influence[0]),
+        state.players[mover].coins,
+        state.players[opponent].coins,
+        state.phase.name,
+        "" if action is None else str(action.kind),
+        "" if action is None else ("self" if action.actor == mover else "opponent"),
+        "" if block is None else str(block.character),
+        "" if block is None else ("self" if block.blocker == mover else "opponent"),
+    )
+
+
+@dataclass(frozen=True)
+class Entry:
+    #: "win" or "loss", for the player to move.
+    result: str
+    #: Plies to the end, counting every decision including response windows.
+    dtm: int
+    #: Every move achieving the result -- the quickest win, or the slowest loss.
+    best_moves: tuple[str, ...]
+
+    @property
+    def winning(self) -> bool:
+        return self.result == "win"
+
+
+def load(path: Path | str = DEFAULT_PATH) -> dict[tuple, Entry]:
+    table: dict[tuple, Entry] = {}
+    with Path(path).open(newline="") as handle:
+        for row in csv.DictReader(handle):
+            key = (
+                row["to_act_card"],
+                row["opponent_card"],
+                int(row["to_act_coins"]),
+                int(row["opponent_coins"]),
+                row["phase"],
+                row["pending_action"],
+                row["pending_action_by"],
+                row["pending_block"],
+                row["pending_block_by"],
+            )
+            table[key] = Entry(
+                result=row["result"],
+                dtm=int(row["dtm"]),
+                best_moves=tuple(row["best_moves"].split("|")),
+            )
+    return table
+
+
+def probe(state: GameState, table: dict[tuple, Entry] | None = None) -> Entry:
+    """Look up a live position.  Raises ``KeyError`` if it is out of scope."""
+    if table is None:
+        table = load()
+    key = position_key(state)
+    if key not in table:
+        raise KeyError(f"position not in the table: {key}")
+    return table[key]
