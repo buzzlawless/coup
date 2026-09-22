@@ -1,22 +1,26 @@
 """Exact solution of small Coup positions by retrograde analysis.
 
-Coup with two players, one influence each and no bluffing is a finite
-zero-sum game of perfect information, so it has a definite value: a win for
-one side, or a draw.
+Coup with two players, one influence each and no bluffing is a finite zero-sum
+game of perfect information, so every position is a win for one side.  There is
+no draw: the game has no stalemate rule, no turn limit and no agreement.
 
-Two things stop plain minimax from working:
+Two things still stop plain minimax from working:
 
 * **The graph has cycles.**  A blocked action changes nothing -- Foreign Aid
-  into a Duke, a Steal into a Captain -- so a player can pass in all but name,
-  and a losing player may prefer to do so forever.  Backward induction from the
-  terminals handles this; a state that never gets resolved is a draw by
-  infinite play.
+  into a Duke, a Steal into a Captain -- so a player can pass in all but name
+  and positions repeat.  Minimax would recurse forever.
 * **There is no depth bound**, so the search has to run over the state *graph*
   rather than the game tree.  ``state_key`` collapses transpositions.
 
-``solve`` therefore runs the standard breadth-first retrograde sweep, which
-also yields distance-to-win: a node is won as soon as one successor is won for
-the mover, and lost only once every successor has been shown lost.
+``solve`` therefore runs the standard breadth-first retrograde sweep back from
+the terminals, which also yields distance-to-win: a node is won as soon as one
+successor is won for the mover, and lost only once every successor has been
+shown lost.
+
+Cycles being real does not mean a cycle can ever be *chosen*.  A position the
+sweep never resolves would be one neither player can force to an end, and since
+Coup cannot end in a draw that is a finding or a bug, not a result -- so it
+raises ``NonTerminating`` rather than quietly reporting one.
 """
 
 from __future__ import annotations
@@ -33,11 +37,30 @@ from .state import GameState
 
 
 class Value(IntEnum):
-    """Who wins the position under perfect play."""
+    """Who wins the position under perfect play.
+
+    There is no third value.  Coup has no draw mechanism -- no stalemate, no
+    turn limit, no agreement -- so the only alternative to a win for one side
+    is a game that never ends, and that is an exception rather than a result.
+    """
 
     P0_WINS = 0
     P1_WINS = 1
-    DRAW = 2
+
+
+class NonTerminating(Exception):
+    """Neither player could be shown to force the game to an end.
+
+    This should be impossible: Income is always legal, cannot be blocked and
+    makes no claim, so every player can add a coin every turn no matter what
+    the opponent does, and the only way to take coins away -- Steal -- moves
+    them rather than destroying them.  Somebody's bank therefore grows without
+    bound, reaches Coup range, and ends the game.
+
+    So this firing means either a real non-terminating line, which is worth
+    knowing about, or a bug in the graph.  Neither should be quietly reported
+    as a draw.
+    """
 
 
 def state_key(state: GameState) -> tuple:
@@ -114,11 +137,14 @@ class Solution:
     root: tuple
     nodes: dict[tuple, Node]
 
+    #: Positions left unresolved, non-empty only when ``solve`` was told to
+    #: tolerate them.
+    nonterminating: frozenset = frozenset()
+
     @property
-    def value(self) -> Value:
+    def value(self) -> Value | None:
         # Not `or`: Value.P0_WINS is 0 and would be swallowed as falsy.
-        value = self.nodes[self.root].value
-        return Value.DRAW if value is None else value
+        return self.nodes[self.root].value
 
     @property
     def depth(self) -> int:
@@ -130,7 +156,11 @@ class Solution:
         if node.mover is None:
             return []
         wins = Value(node.mover)
-        keep = [(d, k) for d, k in node.moves if self.nodes[k].value is node.value]
+        keep = [
+            (d, k)
+            for d, k in node.moves
+            if self.nodes[k].value is node.value and node.value is not None
+        ]
         reverse = node.value is not wins
         return sorted(keep, key=lambda dk: self.nodes[dk[1]].depth, reverse=reverse)
 
@@ -189,7 +219,20 @@ def build_graph(root: GameState, decisions=truthful_decisions) -> dict[tuple, No
     return nodes
 
 
-def solve(root: GameState, decisions=truthful_decisions) -> Solution:
+def solve(
+    root: GameState,
+    decisions=truthful_decisions,
+    allow_nonterminating: bool = False,
+) -> Solution:
+    """Solve a two-player position exactly.
+
+    Raises ``NonTerminating`` if any reachable position cannot be forced to an
+    end by either side.  Pass ``allow_nonterminating=True`` to collect those
+    positions on the solution instead of raising -- useful when exploring a
+    variant that really can stall.
+    """
+    if len(root.players) != 2:
+        raise ValueError("the solver handles heads-up positions only")
     nodes = build_graph(root, decisions)
 
     predecessors: dict[tuple, list[tuple]] = {k: [] for k in nodes}
@@ -198,16 +241,17 @@ def solve(root: GameState, decisions=truthful_decisions) -> Solution:
 
     for key, node in nodes.items():
         if node.state.game_over:
-            node.value = Value(node.state.winner) if node.state.winner is not None else Value.DRAW
+            if node.state.winner is None:
+                raise AssertionError("a heads-up game ended with nobody alive")
+            node.value = Value(node.state.winner)
             node.depth = 0
             frontier.append(key)
             continue
+        if not node.moves:
+            raise AssertionError("a live position with no legal move")
         unresolved[key] = len(node.moves)
         for _decision, child in node.moves:
             predecessors[child].append(key)
-        if not node.moves:  # no legal move: cannot arise in Coup, but be safe
-            node.value = Value.DRAW
-            frontier.append(key)
 
     # Breadth-first retrograde sweep.  A node is won the moment one successor is
     # known won for its mover; it is lost only once every successor is spent.
@@ -229,8 +273,14 @@ def solve(root: GameState, decisions=truthful_decisions) -> Solution:
                     parent.depth = resolved.depth + 1
                     frontier.append(parent_key)
 
-    for node in nodes.values():
-        if node.value is None:
-            node.value = Value.DRAW  # never forced either way: infinite play
+    stuck = frozenset(key for key, node in nodes.items() if node.value is None)
+    if stuck and not allow_nonterminating:
+        example = nodes[next(iter(stuck))].state
+        coins = tuple(p.coins for p in example.players)
+        raise NonTerminating(
+            f"{len(stuck)} of {len(nodes)} positions resolve to neither win; "
+            f"e.g. coins={coins} phase={example.phase.name}. "
+            "Coup has no draw mechanism, so this is a finding or a bug."
+        )
 
-    return Solution(state_key(root), nodes)
+    return Solution(state_key(root), nodes, nonterminating=stuck)

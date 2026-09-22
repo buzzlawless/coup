@@ -6,7 +6,7 @@ import pytest
 
 from coup import ActionKind, Card, ChooseAction, RuleConfig, new_game
 from coup.decisions import Block, Challenge
-from coup.solve import Value, solve, truthful_decisions
+from coup.solve import NonTerminating, Value, solve, truthful_decisions
 
 CARDS = [Card.DUKE, Card.ASSASSIN, Card.CAPTAIN, Card.CONTESSA]
 
@@ -22,9 +22,7 @@ def duel(first: Card, second: Card):
 
 
 def winner(first: Card, second: Card) -> int:
-    value = duel(first, second).value
-    assert value is not Value.DRAW
-    return 0 if value is Value.P0_WINS else 1
+    return 0 if duel(first, second).value is Value.P0_WINS else 1
 
 
 # --- the reduced game itself ---------------------------------------------
@@ -71,10 +69,53 @@ def test_only_a_real_holder_may_block():
 # --- solved values --------------------------------------------------------
 
 
-def test_no_matchup_is_a_draw():
+def test_every_position_resolves_to_a_win_for_someone():
+    """Coup has no draw, so solve() raises rather than inventing one.
+
+    Income cannot be blocked and makes no claim, so a player can always add a
+    coin whatever the opponent does, and Steal moves coins rather than
+    destroying them.  Somebody always reaches Coup range.
+    """
     for first in CARDS:
         for second in CARDS:
-            assert duel(first, second).value is not Value.DRAW
+            solution = duel(first, second)  # raises NonTerminating if it stalls
+            assert solution.value in (Value.P0_WINS, Value.P1_WINS)
+            assert not solution.nonterminating
+
+
+def test_the_state_graph_really_is_cyclic():
+    """Justifies the retrograde sweep: minimax would recurse forever here."""
+    from coup.solve import build_graph
+
+    nodes = build_graph(new_game(2, config=CONFIG, hands=[[Card.DUKE], [Card.DUKE]]))
+    colour = dict.fromkeys(nodes, 0)
+    back_edges = 0
+    for start in nodes:
+        if colour[start]:
+            continue
+        colour[start] = 1
+        stack = [(start, iter(nodes[start].moves))]
+        while stack:
+            key, moves = stack[-1]
+            nxt = next(moves, None)
+            if nxt is None:
+                colour[key] = 2
+                stack.pop()
+                continue
+            child = nxt[1]
+            if colour[child] == 1:
+                back_edges += 1
+            elif colour[child] == 0:
+                colour[child] = 1
+                stack.append((child, iter(nodes[child].moves)))
+    assert back_edges > 0
+
+
+def test_the_solver_is_heads_up_only():
+    config = RuleConfig(starting_influence=1, starting_coins=0)
+    state = new_game(3, config=config, hands=[[Card.DUKE], [Card.CAPTAIN], [Card.CONTESSA]])
+    with pytest.raises(ValueError):
+        solve(state)
 
 
 def test_a_first_player_win_is_reported_as_such():

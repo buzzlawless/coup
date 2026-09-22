@@ -72,11 +72,8 @@ def main() -> None:
         row = [str(first).ljust(width + 2)]
         for second in CARDS:
             solution = results[first, second]
-            if solution.value is Value.DRAW:
-                cell = "draw"
-            else:
-                seat = 0 if solution.value is Value.P0_WINS else 1
-                cell = f"{'1st' if seat == 0 else '2nd'} ({solution.turns(seat)})"
+            seat = 0 if solution.value is Value.P0_WINS else 1
+            cell = f"{'1st' if seat == 0 else '2nd'} ({solution.turns(seat)})"
             row.append(cell.ljust(width + 4))
         print("".join(row))
 
@@ -85,9 +82,7 @@ def main() -> None:
         for second in CARDS:
             solution = results[first, second]
             verdict = (
-                "draw"
-                if solution.value is Value.DRAW
-                else f"P0 ({first}) wins"
+                f"P0 ({first}) wins"
                 if solution.value is Value.P0_WINS
                 else f"P1 ({second}) wins"
             )

@@ -117,8 +117,14 @@ that one function.
 `coup/solve.py` solves small positions exactly by retrograde analysis. The
 state graph has **cycles** — a blocked action changes nothing, so a player can
 pass in all but name — which is why it is a breadth-first sweep back from the
-terminals rather than minimax: a state that never resolves is a draw by
-infinite play.
+terminals rather than minimax, which would recurse forever.
+
+There is no draw value. Coup has no draw mechanism, and none is reachable
+anyway: Income cannot be blocked and makes no claim, so a player can add a coin
+every turn whatever the opponent does, and Steal moves coins rather than
+destroying them — so somebody always reaches Coup range. A position the sweep
+cannot resolve is therefore a finding or a bug, and `solve` raises
+`NonTerminating` rather than quietly calling it a draw.
 
 `analysis/heads_up_one_card.py` uses it on the reduced game: two players, one
 influence each, 0 coins, both cards public, nobody bluffs (so nobody
