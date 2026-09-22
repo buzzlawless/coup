@@ -51,7 +51,7 @@ TOLERANCE = 1e-12
 MAX_SWEEPS = 100_000
 
 
-@dataclass
+@dataclass(slots=True)
 class Node:
     #: Seat to move, or None at a terminal position.
     mover: int | None
