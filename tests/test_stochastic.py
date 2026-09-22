@@ -8,7 +8,7 @@ from math import comb
 import pytest
 
 from coup import Card, RuleConfig, new_game
-from coup.solve import Value, solve
+from coup.solve import Value, solve, truthful_decisions
 from coup.stochastic import build, dead_cards, evaluate, lookup_key, win_probability
 
 CONFIG = RuleConfig(starting_influence=1, starting_coins=0, two_player_start_handicap=False)
@@ -66,6 +66,56 @@ def test_which_cards_are_dead_changes_the_value():
     a = duel(Card.AMBASSADOR, Card.DUKE, dead=(Card.CAPTAIN, Card.CAPTAIN))
     b = duel(Card.AMBASSADOR, Card.DUKE, dead=(Card.CONTESSA, Card.CONTESSA))
     assert win_probability(solved(a), a) != win_probability(solved(b), b)
+
+
+def no_exchange(state):
+    """Truthful play with the Exchange struck out.
+
+    With no Exchange nothing reads the deck, so the game is deterministic again
+    and the exact solver applies -- which makes this the clean way to ask what
+    an Ambassador is worth on its own card.
+    """
+    from coup.actions import ActionKind
+    from coup.decisions import ChooseAction
+
+    return [
+        d
+        for d in truthful_decisions(state)
+        if not (isinstance(d, ChooseAction) and d.kind is ActionKind.EXCHANGE)
+    ]
+
+
+def test_an_ambassador_holding_its_card_cannot_beat_a_duke_from_level():
+    """All of its equity in this matchup is the exchange; none is the card."""
+    root = duel(Card.AMBASSADOR, Card.DUKE)
+    assert solve(root, decisions=no_exchange).value is Value.P1_WINS
+
+
+def test_only_a_captain_converts_the_exchange_against_a_duke():
+    """Which is why the value is exactly the chance of drawing one.
+
+    Exchanging costs the turn, so the Duke moves next; from that tempo every
+    other card in the deck still loses the race.
+    """
+    winners = set()
+    for card in Card:
+        after = new_game(
+            2,
+            config=CONFIG,
+            hands=[[card], [Card.DUKE]],
+            revealed=[[Card.CONTESSA], [Card.CONTESSA]],
+        )
+        after.turn = 1  # the turn went on the exchange
+        if solve(after, decisions=no_exchange).value is Value.P0_WINS:
+            winners.add(card)
+    assert winners == {Card.CAPTAIN}
+
+
+def test_a_coin_lead_lets_the_ambassador_win_a_duke_outright():
+    """So 'always loses to a Duke' is a fact about the even start, not the card."""
+    ahead = duel(Card.AMBASSADOR, Card.DUKE)
+    ahead.players[0].coins = 4
+    assert solve(ahead, decisions=no_exchange).value is Value.P0_WINS
 
 
 @pytest.mark.parametrize(

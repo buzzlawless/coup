@@ -150,10 +150,14 @@ game nothing reads the deck, so this provably cannot matter and `position_key`
 leaves it out; once an Exchange is possible it decides the odds, and
 `stochastic.lookup_key` adds it.
 
-How much it matters: an Ambassador facing a Duke is losing the race outright,
-and only a Captain rescues it, so its equity is exactly the chance of finding
-one in two cards off an 11-card deck — 27/55, 19/55 or 10/55 as zero, one or
-two Captains are already dead.
+How much it matters: an Ambassador facing a Duke from an even start cannot win
+while holding its own card at all — every bit of its equity is the exchange.
+Exchanging costs the turn, so the Duke moves next, and from that tempo only a
+Captain still wins the race. Its value is therefore exactly the chance of
+finding a Captain in two cards off an 11-card deck — 27/55, 19/55 or 10/55 as
+zero, one or two Captains are already dead. Give it four coins in hand and it
+beats the Duke outright without exchanging, so this is a fact about the even
+start rather than about the card.
 
 ## Tablebase
 
