@@ -1,8 +1,15 @@
 """Build the tablebase for heads-up Coup with one influence each.
 
 Scope: two players, one card each, both cards public, nobody bluffs (so nobody
-challenges), no Ambassador, 0 coins at the start.  Every position reachable
-from one of the sixteen openings is solved exactly and written out.
+challenges), no Ambassador.  Every *legal* position is solved, not merely the
+ones reachable from a 0-coin start, the way a chess table covers positions no
+sensible game would produce.
+
+The coin range is bounded by the forced-Coup rule.  A turn that begins on 10 or
+more coins may only Coup, so any turn that can add coins begins on at most 9,
+and the biggest single-turn gain is Tax at +3.  Nobody can therefore ever hold
+more than 12, and 0..12 for each player is the whole space.
+
 
 Rows are written from the point of view of **the player to move**, which is
 what collapses the seat symmetry: a Duke on 3 coins facing a Captain on 5 is
@@ -22,7 +29,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from coup import Card, RuleConfig, new_game
-from coup.solve import Value, solve
+from coup.solve import Value, solve_many
 from coup.tablebase import FIELDS, POSITION_FIELDS, describe, position_key
 
 CARDS = [Card.DUKE, Card.ASSASSIN, Card.CAPTAIN, Card.CONTESSA]
@@ -33,9 +40,20 @@ CONFIG = RuleConfig(
     two_player_start_handicap=False,
 )
 
+#: A turn beginning on 10+ coins may only Coup, so a turn that adds coins
+#: begins on at most 9, and Tax (+3) is the largest single-turn gain.
+MAX_COINS = 12
+
 OUT_DIR = Path(__file__).resolve().parent.parent / "tablebase"
 CSV_PATH = OUT_DIR / "heads_up_one_card.csv"
 META_PATH = OUT_DIR / "heads_up_one_card.meta.json"
+
+def position(first: Card, second: Card, first_coins: int = 0, second_coins: int = 0):
+    state = new_game(2, config=CONFIG, hands=[[first], [second]])
+    state.players[0].coins = first_coins
+    state.players[1].coins = second_coins
+    return state
+
 
 def row_for(solution, key) -> dict:
     node = solution.nodes[key]
@@ -55,24 +73,33 @@ def identity(row: dict) -> tuple:
     return tuple(row[f] for f in POSITION_FIELDS)
 
 
+def every_legal_position() -> list:
+    return [
+        position(a, b, ca, cb)
+        for a in CARDS
+        for b in CARDS
+        for ca in range(MAX_COINS + 1)
+        for cb in range(MAX_COINS + 1)
+    ]
+
+
 def build() -> list[dict]:
+    solution = solve_many(every_legal_position())
+
     table: dict[tuple, dict] = {}
-    for first in CARDS:
-        for second in CARDS:
-            solution = solve(new_game(2, config=CONFIG, hands=[[first], [second]]))
-            for key, node in solution.nodes.items():
-                if node.state.game_over:
-                    continue  # nothing to look up: the game is already decided
-                row = row_for(solution, key)
-                ident = identity(row)
-                seen = table.get(ident)
-                if seen is None:
-                    table[ident] = row
-                elif seen != row:
-                    raise AssertionError(
-                        "two positions collapsed onto one row with different "
-                        f"answers, so the schema is missing a field:\n  {seen}\n  {row}"
-                    )
+    for key, node in solution.nodes.items():
+        if node.state.game_over:
+            continue  # nothing to look up: the game is already decided
+        row = row_for(solution, key)
+        ident = identity(row)
+        seen = table.get(ident)
+        if seen is None:
+            table[ident] = row
+        elif seen != row:
+            raise AssertionError(
+                "two positions collapsed onto one row with different "
+                f"answers, so the schema is missing a field:\n  {seen}\n  {row}"
+            )
     return [table[k] for k in sorted(table)]
 
 
@@ -99,6 +126,8 @@ def main() -> None:
                 "cards": [str(c) for c in CARDS],
                 "rules": asdict(CONFIG),
                 "rows": len(rows),
+                "max_coins": MAX_COINS,
+                "coverage": "every legal position",
                 "perspective": "every row is written from the point of view of the player to move",
                 "dtm": "plies to the end of the game, counting every decision including response windows",
                 "sha256": digest,

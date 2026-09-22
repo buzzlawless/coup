@@ -8,7 +8,15 @@ import json
 
 import pytest
 
-from analysis.build_tablebase import CARDS, CONFIG, CSV_PATH, META_PATH, build
+from analysis.build_tablebase import (
+    CARDS,
+    CONFIG,
+    CSV_PATH,
+    MAX_COINS,
+    META_PATH,
+    build,
+    position,
+)
 from coup import Card, new_game
 from coup.engine import apply
 from coup.solve import Value, solve, truthful_decisions
@@ -43,6 +51,48 @@ def test_metadata_records_the_rules_and_a_matching_digest():
 def test_header_is_the_declared_schema():
     with CSV_PATH.open(newline="") as handle:
         assert next(csv.reader(handle)) == FIELDS
+
+
+def test_every_legal_action_position_is_covered():
+    """All 16 matchups x every legal coin pair, not just what a game reaches."""
+    import itertools
+
+    stored = {
+        key[:4] for key in TABLE if key[4] == "ACTION"
+    }  # (mover card, opponent card, mover coins, opponent coins)
+    expected = {
+        (str(a), str(b), ca, cb)
+        for a, b in itertools.product(CARDS, repeat=2)
+        for ca in range(MAX_COINS + 1)
+        for cb in range(MAX_COINS + 1)
+    }
+    assert stored == expected
+    assert len(expected) == 16 * (MAX_COINS + 1) ** 2 == 2704
+
+
+def test_twelve_coins_is_the_ceiling():
+    """A turn opening on 10+ may only Coup, so it opens on <=9 to earn; Tax is +3."""
+    assert MAX_COINS == CONFIG.mandatory_coup_threshold - 1 + 3
+    assert max(key[2] for key in TABLE) == MAX_COINS
+    assert max(key[3] for key in TABLE) == MAX_COINS
+
+
+def test_a_forced_coup_wins_on_the_spot():
+    """With one influence, anyone who must Coup thereby wins."""
+    forced = [
+        (key, entry)
+        for key, entry in TABLE.items()
+        if key[4] == "ACTION" and key[2] >= CONFIG.mandatory_coup_threshold
+    ]
+    assert len(forced) == 624
+    assert all(entry.result == "win" for _key, entry in forced)
+    assert all(entry.best_moves == ("Coup",) for _key, entry in forced)
+
+
+def test_positions_beyond_the_ceiling_are_absent():
+    state = position(Card.DUKE, Card.CAPTAIN, MAX_COINS + 1, 0)
+    with pytest.raises(KeyError):
+        probe(state, TABLE)
 
 
 def test_no_terminal_positions_are_stored():

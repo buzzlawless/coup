@@ -133,8 +133,17 @@ challenges), no Ambassador. Run it with `python -m analysis.heads_up_one_card`.
 ## Tablebase
 
 `tablebase/heads_up_one_card.csv` is the solved table for the reduced game:
-every position reachable from any of the sixteen openings, 6,981 of them, with
-who wins, in how many plies, and every move that achieves it.
+**every legal position**, 9,335 of them, with who wins, in how many plies, and
+every move that achieves it. Not merely the ones a game from the 0-coin start
+reaches — a chess table covers positions no sensible game would produce, and so
+does this one.
+
+The coin range is bounded by the forced-Coup rule, not by an arbitrary cap. A
+turn beginning on 10 or more coins may only Coup, so any turn that can *add*
+coins begins on at most 9, and the largest single-turn gain is Tax at +3.
+Nobody can ever hold more than **12**, which makes the space 16 matchups × 13 ×
+13 coin pairs = 2,704 action positions, plus the mid-turn positions that follow
+from them.
 
 ```python
 from coup import Card, new_game
@@ -164,7 +173,8 @@ table that is quietly wrong.
 | `best_moves` | `\|`-separated, all tying for best — quickest win, or slowest loss |
 
 Terminal positions are not stored: there is nothing to look up once the game is
-decided.
+decided. All 624 positions where the mover holds 10+ coins are wins playing
+Coup — with one influence, being forced to Coup is being handed the game.
 
 **Why CSV.** Real chess tablebases are binary because they are terabytes and
 have to be mmapped and compressed; at 430 KB none of that applies. What does

@@ -134,12 +134,19 @@ class Node:
 
 @dataclass
 class Solution:
-    root: tuple
     nodes: dict[tuple, Node]
+    #: The positions the solve started from.
+    roots: tuple = ()
 
     #: Positions left unresolved, non-empty only when ``solve`` was told to
     #: tolerate them.
     nonterminating: frozenset = frozenset()
+
+    @property
+    def root(self) -> tuple:
+        if len(self.roots) != 1:
+            raise ValueError(f"this solution has {len(self.roots)} roots, not one")
+        return self.roots[0]
 
     @property
     def value(self) -> Value | None:
@@ -192,13 +199,30 @@ class Solution:
         return line
 
 
-def build_graph(root: GameState, decisions=truthful_decisions) -> dict[tuple, Node]:
-    """Expand every position reachable from ``root``."""
+def build_graph(roots, decisions=truthful_decisions) -> dict[tuple, Node]:
+    """Expand every position reachable from ``roots``.
+
+    ``roots`` is one ``GameState`` or an iterable of them.  Passing many at once
+    shares the transposition table between them, which is how a whole tablebase
+    gets solved in a single sweep instead of once per starting position.
+    """
+    if isinstance(roots, GameState):
+        roots = [roots]
+    roots = list(roots)
+    if not roots:
+        raise ValueError("need at least one root position")
+
     rng = random.Random(0)  # unused: the reduced game makes no draws
-    deck_size = len(root.deck)
+    deck_size = len(roots[0].deck)
     nodes: dict[tuple, Node] = {}
-    queue = deque([root])
-    nodes[state_key(root)] = Node(root, to_act(root), [])
+    queue: deque[GameState] = deque()
+    for root in roots:
+        if len(root.deck) != deck_size:
+            raise ValueError("roots must all have the same deck size")
+        key = state_key(root)
+        if key not in nodes:
+            nodes[key] = Node(root, to_act(root), [])
+            queue.append(root)
 
     while queue:
         state = queue.popleft()
@@ -224,16 +248,27 @@ def solve(
     decisions=truthful_decisions,
     allow_nonterminating: bool = False,
 ) -> Solution:
-    """Solve a two-player position exactly.
+    """Solve a single two-player position exactly.
 
     Raises ``NonTerminating`` if any reachable position cannot be forced to an
     end by either side.  Pass ``allow_nonterminating=True`` to collect those
     positions on the solution instead of raising -- useful when exploring a
     variant that really can stall.
     """
-    if len(root.players) != 2:
-        raise ValueError("the solver handles heads-up positions only")
-    nodes = build_graph(root, decisions)
+    return solve_many([root], decisions, allow_nonterminating)
+
+
+def solve_many(
+    roots,
+    decisions=truthful_decisions,
+    allow_nonterminating: bool = False,
+) -> Solution:
+    """Solve many positions in one sweep, sharing the transposition table."""
+    roots = list(roots)
+    for root in roots:
+        if len(root.players) != 2:
+            raise ValueError("the solver handles heads-up positions only")
+    nodes = build_graph(roots, decisions)
 
     predecessors: dict[tuple, list[tuple]] = {k: [] for k in nodes}
     unresolved: dict[tuple, int] = {}
@@ -283,4 +318,4 @@ def solve(
             "Coup has no draw mechanism, so this is a finding or a bug."
         )
 
-    return Solution(state_key(root), nodes, nonterminating=stuck)
+    return Solution(nodes, tuple(state_key(r) for r in roots), nonterminating=stuck)

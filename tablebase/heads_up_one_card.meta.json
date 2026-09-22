@@ -20,8 +20,10 @@
     "refund_cost_on_caught_bluff": false,
     "allow_stealing_from_zero": false
   },
-  "rows": 6981,
+  "rows": 9335,
+  "max_coins": 12,
+  "coverage": "every legal position",
   "perspective": "every row is written from the point of view of the player to move",
   "dtm": "plies to the end of the game, counting every decision including response windows",
-  "sha256": "9525bbc9c734cd28cc96d001d679120971d958de902b50c63458c214f7d8dd25"
+  "sha256": "6c8283e8d668d9848eee2b55d696b8cbd381268fd52d69197e7094bcffae6a22"
 }
