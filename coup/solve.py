@@ -67,8 +67,9 @@ def state_key(state: GameState) -> tuple:
     """A canonical key: everything that can affect play, and nothing else.
 
     The deck and the history are excluded.  The history cannot affect future
-    play, and the deck is only touched by a draw -- so this is a sound
-    collapse exactly as long as no draw can occur, which ``solve`` asserts.
+    play, and the deck's contents are fixed by the cards held and revealed,
+    which are included -- so two positions with the same key face the same
+    draw distribution.
     """
     return (
         tuple(
@@ -91,6 +92,7 @@ def state_key(state: GameState) -> tuple:
         tuple(state.responders),
         tuple(state.losses),
         int(state.resume),
+        tuple(sorted(state.exchange_drawn)),
     )
 
 

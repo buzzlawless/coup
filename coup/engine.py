@@ -56,12 +56,18 @@ def new_game(
     rng: random.Random | None = None,
     config: RuleConfig | None = None,
     hands: list[list[Card]] | None = None,
+    revealed: list[list[Card]] | None = None,
 ) -> GameState:
     """Deal a game.
 
     ``hands`` deals a chosen set of cards instead of a random one, which is how
     a fixed matchup is set up for analysis.  It must give every player exactly
     ``config.starting_influence`` cards, all available in the deck.
+
+    ``revealed`` places cards face up as already lost.  A player down to one
+    influence in a real game has revealed their other card, and that card is out
+    of the deck -- so setting up such a position without it would leave the draw
+    probabilities wrong.
     """
     if not MIN_PLAYERS <= num_players <= MAX_PLAYERS:
         raise ValueError(f"Coup is for {MIN_PLAYERS}-{MAX_PLAYERS} players")
@@ -93,6 +99,16 @@ def new_game(
                     raise ValueError(f"no {card} left in the deck to deal")
                 state.deck.remove(card)
                 player.influence.append(card)
+
+    if revealed is not None:
+        if len(revealed) != num_players:
+            raise ValueError("revealed must cover every player")
+        for player, cards in zip(state.players, revealed):
+            for card in cards:
+                if card not in state.deck:
+                    raise ValueError(f"no {card} left in the deck to reveal")
+                state.deck.remove(card)
+                player.revealed.append(card)
 
     if num_players == MIN_PLAYERS and config.two_player_start_handicap:
         state.players[0].coins = max(0, config.starting_coins - 1)

@@ -130,6 +130,31 @@ cannot resolve is therefore a finding or a bug, and `solve` raises
 influence each, 0 coins, both cards public, nobody bluffs (so nobody
 challenges), no Ambassador. Run it with `python -m analysis.heads_up_one_card`.
 
+## The Ambassador, and chance
+
+An Ambassador in play makes the game stochastic: the Exchange draws from the
+deck, so a position has a win *probability* rather than a winner.
+
+Two things follow. First, `coup/chance.py` enumerates a draw's outcomes with
+their probabilities instead of sampling one, by handing `apply` a stand-in for
+its source of randomness — so the engine needs no notion of a chance node.
+Second, `coup/stochastic.py` replaces the retrograde sweep with value
+iteration, since with chance there is no "won as soon as one successor is won".
+Seeding the iteration pessimistically and optimistically and getting the same
+fixpoint is a *proof* that no line runs forever, rather than an assumption.
+
+**One influence means one card lost.** A player down to a single influence has
+revealed the other, face up and out of the deck — so the deck holds 11 cards,
+not 13, and *which* two are dead changes every draw. In the Ambassador-free
+game nothing reads the deck, so this provably cannot matter and `position_key`
+leaves it out; once an Exchange is possible it decides the odds, and
+`stochastic.lookup_key` adds it.
+
+How much it matters: an Ambassador facing a Duke is losing the race outright,
+and only a Captain rescues it, so its equity is exactly the chance of finding
+one in two cards off an 11-card deck — 27/55, 19/55 or 10/55 as zero, one or
+two Captains are already dead.
+
 ## Tablebase
 
 `tablebase/heads_up_one_card.csv` is the solved table for the reduced game:
