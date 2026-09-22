@@ -49,6 +49,15 @@ def test_the_page_never_rebuilds_a_file_name():
     assert '.sort().join("-")' not in app
 
 
+def test_play_mode_rolls_the_deck_and_locks_the_other_side():
+    """Choosing a draw is exploring; playing means the deck decides. And the
+    automatic side's moves must not be clickable, or you play its turn."""
+    app = (OUT.parent / "app.js").read_text()
+    assert "auto === null" in app       # the picker is offered only while exploring
+    assert "function roll(" in app
+    assert "locked" in app
+
+
 def test_the_draw_picker_says_whose_equity_it_shows():
     """A draw is the deck's, not the mover's, so it is shown from the side of
     whoever is drawing -- the opposite of every other panel, hence the label."""

@@ -9,6 +9,10 @@
  *     with the name the generator wrote, for six of the fifteen pairs);
  *   - every chance outcome must land where its own label says (the rows were
  *     sorted for display but looked up in the unsorted array).
+ *
+ * It also covers play mode: the automatic side must move on its own, its
+ * options must not be clickable, and the deck must be rolled rather than
+ * offered as a choice.
  */
 import { chromium } from "/opt/node22/lib/node_modules/playwright/index.mjs";
 
@@ -28,12 +32,12 @@ async function clickMove(text) {
   throw new Error(`no move matching "${text}"`);
 }
 
-async function restart(c0, c1, d0, d1) {
+async function restart(c0, c1, d0, d1, autoSeat = "") {
   await page.evaluate(() => {
     const g = document.getElementById("game");
     if (!g.hidden) document.getElementById("reset").click();
   });
-  for (const [id, v] of [["c0", c0], ["c1", c1], ["d0", d0], ["d1", d1]]) {
+  for (const [id, v] of [["c0", c0], ["c1", c1], ["d0", d0], ["d1", d1], ["auto", autoSeat]]) {
     await page.selectOption("#" + id, v);
   }
   await page.click("#start");
@@ -81,6 +85,28 @@ for (const label of labels) {
   await clickMove("pass");
 }
 console.log(`chance outcomes landing correctly: ${matched}/${labels.length}`);
+
+/* 3. play mode: the automatic side moves itself, and the deck is rolled */
+await restart("A", "A", "C", "A", "1");
+let offeredPicker = false, clickedTheirs = false;
+for (let step = 0; step < 80; step++) {
+  if (await page.$(".over")) break;
+  if (await page.$("#moves li[data-target]")) offeredPicker = true;
+  const mine = await page.$("#moves li.move:not(.locked)");
+  if (!mine) { await page.waitForTimeout(350); continue; }
+  const meta = await page.textContent("#meta");
+  if (/Player 2 .*to act|Player 2 may/.test(meta) && !/choosing/.test(meta)) clickedTheirs = true;
+  await mine.click();
+  await page.waitForTimeout(650);
+}
+const plies = await page.$$eval("#history li", (ls) => ls.map((l) => l.textContent.trim()));
+const theirs = plies.filter((h) => h.includes("(auto)"));
+const finished = !!(await page.$(".over"));
+if (offeredPicker) { failures++; console.log("  FAIL a draw was offered as a choice in play mode"); }
+if (!theirs.length) { failures++; console.log("  FAIL the automatic side never moved"); }
+if (!theirs.every((h) => h.startsWith("P2"))) { failures++; console.log("  FAIL a non-P2 ply was marked automatic"); }
+if (!finished) { failures++; console.log("  FAIL play mode did not reach a result"); }
+console.log(`play mode: ${plies.length} plies, ${theirs.length} automatic, result reached: ${finished}`);
 
 if (errors.length) { failures++; console.log("page errors:", errors); }
 console.log(failures ? `\n${failures} FAILURES` : "\nall checks passed");

@@ -11,6 +11,7 @@ const PHASE = {
 let shard = null;      // the loaded slice of the table
 let manifest = null;   // which file holds which pair of upcards
 let stack = [];        // [{index, label}] -- the line so far
+let auto = null;       // seat played automatically, or null while exploring
 const $ = (id) => document.getElementById(id);
 
 for (const id of ["c0", "c1", "d0", "d1"]) {
@@ -74,6 +75,35 @@ function drawnLabel(i) {
   return d ? [...d].map((c) => NAME[c]).join(" + ") : "";
 }
 
+/** The move with the highest EV for whoever is to move. */
+function bestMove(i) {
+  return shard.moves[i].reduce((a, b) => (b[1] > a[1] ? b : a));
+}
+
+/** Draw from a chance move's outcomes, weighted by their probabilities. */
+function roll(move) {
+  let r = Math.random();
+  for (const [p, idx] of move[3]) { r -= p; if (r <= 0) return idx; }
+  return move[3][move[3].length - 1][1];
+}
+
+function play(i, move, tag) {
+  const idx = move[2] === -1 ? roll(move) : move[2];
+  const drew = move[2] === -1 ? ` → ${drawnLabel(idx)}` : "";
+  push(idx, `${shard.vocab[move[0]]}${drew}`, tag);
+}
+
+/** If the automatic side is to move, let it. */
+function maybeAutoPlay() {
+  if (auto === null) return;
+  const i = stack[stack.length - 1].index;
+  if (isOver(i) || shard.info[i][10] !== auto) return;
+  setTimeout(() => {
+    if (stack[stack.length - 1].index !== i) return;  // the line moved on
+    play(i, bestMove(i), " (auto)");
+  }, 450);
+}
+
 function renderBoard(i) {
   const board = $("board");
   if (isOver(i)) {
@@ -87,7 +117,8 @@ function renderBoard(i) {
   const dead = shard.dead.map((c) => NAME[c]).join(" + ");
   board.innerHTML = [0, 1].map((s) => `
     <div class="seat ${s === mover ? "turn" : ""}">
-      <div class="who">Player ${s + 1}${s === mover ? " &mdash; to move" : ""}</div>
+      <div class="who">Player ${s + 1}${s === auto ? " &mdash; automatic" : ""}${
+        s === mover ? " &mdash; to move" : ""}</div>
       <div class="card">${NAME[cards[s]]}</div>
       <div class="coins">${coins[s]} coin${coins[s] === 1 ? "" : "s"}</div>
     </div>`).join("");
@@ -117,16 +148,23 @@ function renderMoves(i) {
   if (isOver(i)) return;
   const moves = shard.moves[i];
   const best = Math.max(...moves.map((m) => m[1]));
+  // The automatic side's options are worth seeing but must not be clickable,
+  // or you would be playing its turn for it.
+  const locked = auto !== null && shard.info[i][10] === auto;
   list.innerHTML = moves
     .map((m, k) => ({ m, k }))
     .sort((x, y) => y.m[1] - x.m[1])
     .map(({ m, k }) => {
       const chance = m[2] === -1;
       const tag = chance ? ` <span class="tag">${m[3].length} draws</span>` : "";
-      return moveRow(shard.vocab[m[0]], m[1], m[1] >= best - 1e-9, chance, tag)
-        .replace("<li ", `<li data-move="${k}" `);
-    }).join("");
+      const row = moveRow(shard.vocab[m[0]], m[1], m[1] >= best - 1e-9, chance, tag);
+      return locked
+        ? row.replace('class="move ', 'class="move locked ')
+        : row.replace("<li ", `<li data-move="${k}" `);
+    }).join("") +
+    (locked ? `<li class="move locked waiting">Player ${auto + 1} is choosing&hellip;</li>` : "");
 
+  if (locked) return;
   list.querySelectorAll("li[data-move]").forEach((el) => {
     el.onclick = () => choose(i, Number(el.dataset.move));
   });
@@ -166,7 +204,7 @@ function renderOutcomes(i, k) {
 function renderHistory() {
   $("histPanel").hidden = stack.length < 2;
   $("history").innerHTML = stack.slice(1)
-    .map((s, n) => `<li>${n + 1}. ${s.label}</li>`).join("");
+    .map((s) => `<li>${s.label}</li>`).join("");
 }
 
 function render() {
@@ -181,17 +219,27 @@ function render() {
 
 function choose(i, k) {
   const move = shard.moves[i][k];
-  if (move[2] === -1) { renderBoard(i); renderOutcomes(i, k); return; }
-  push(move[2], shard.vocab[move[0]]);
+  // While a side is automatic the deck is rolled: choosing a draw -- your own
+  // or your opponent's -- is exploring, not playing.
+  if (move[2] === -1 && auto === null) { renderBoard(i); renderOutcomes(i, k); return; }
+  play(i, move, "");
 }
 
-function push(index, label) {
+function push(index, label, tag = "") {
   const mover = stack.length ? shard.info[stack[stack.length - 1].index][10] : 0;
-  stack.push({ index, label: `P${mover + 1}: ${label}` });
+  stack.push({ index, label: `P${mover + 1}${tag}: ${label}` });
   render();
+  maybeAutoPlay();
 }
 
-$("undo").onclick = () => { stack.pop(); render(); };
+$("undo").onclick = () => {
+  // Step back past the automatic replies to your own last decision, or it
+  // would simply take them again.
+  do { stack.pop(); }
+  while (stack.length > 1 && auto !== null && !isOver(stack[stack.length - 1].index)
+         && shard.info[stack[stack.length - 1].index][10] === auto);
+  render();
+};
 $("reset").onclick = () => {
   $("game").hidden = true; $("histPanel").hidden = true; $("setup").hidden = false;
 };
@@ -225,7 +273,9 @@ $("start").onclick = async () => {
   const index = shard.starts[`${c0}${c1}${n0}.${n1}.0`];
   if (index === undefined) { err.textContent = "That position is not in the table."; return; }
   err.textContent = "";
+  auto = $("auto").value === "" ? null : Number($("auto").value);
   stack = [{ index, label: "start" }];
   $("setup").hidden = true; $("game").hidden = false;
   render();
+  maybeAutoPlay();
 };

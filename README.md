@@ -249,8 +249,13 @@ something checked once. Regenerate with
 
 `docs/` is a static page for walking the solved game by hand: pick both cards,
 both upcards and both coin balances, then play forward ply by ply. Every move
-is listed with its exact win probability, and you choose the branch — for
-either side, and at chance nodes you pick the draw rather than rolling it.
+is listed with its exact win probability.
+
+It runs in one of two modes. **Exploring**, you choose every branch for both
+sides, and at a chance node you pick the draw rather than rolling it.
+**Playing**, one side is automatic: it takes the highest-EV move every time,
+its options are shown but not clickable, and the deck is rolled — choosing your
+own draw, or your opponent's, is the point of exploring but not of playing.
 
 To publish it: **Settings → Pages → Source: Deploy from a branch → `main` /
 `docs`**. It is plain HTML, CSS and JSON; there is no build step.

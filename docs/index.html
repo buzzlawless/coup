@@ -59,6 +59,9 @@
   li.move:hover { border-color: var(--accent); }
   li.move.best { border-color: var(--accent); background: var(--accent-soft); }
   li.move.chance { border-style: dashed; }
+  li.move.locked { opacity: .55; cursor: default; }
+  li.move.locked:hover { border-color: var(--line); }
+  li.move.waiting { justify-content: center; color: var(--dim); font-style: italic; }
   li.move.chance.best { background: var(--chance-soft); border-color: var(--chance); }
   .name { flex: 1; }
   .ev { font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -88,6 +91,11 @@
     <div class="row" style="margin-top:12px">
       <div><label>Upcard (lost card)</label><select id="d0"></select></div>
       <div><label>Upcard (lost card)</label><select id="d1"></select></div>
+      <div><label>Played automatically</label><select id="auto">
+        <option value="">nobody &mdash; explore both sides</option>
+        <option value="1">Player 2 &mdash; play against it</option>
+        <option value="0">Player 1 &mdash; play against it</option>
+      </select></div>
       <div><button id="start">Play</button></div>
       <div><button class="ghost" id="swap">Swap sides</button></div>
     </div>
@@ -110,6 +118,9 @@
   </div>
 
   <footer>
+    With a side played automatically it takes the highest-EV move every time,
+    and the deck is rolled rather than chosen &mdash; picking your own draw, or
+    your opponent's, is the point of exploring but not of playing.
     Solved by value iteration over every legal position. EVs are the probability the
     player to move wins, assuming perfect play by both from here on.
     Upcards cannot change during a game, so only that slice of the table is loaded.
