@@ -267,6 +267,15 @@ table.
 
 Regenerate with `python -m analysis.build_web_data` (about 4 minutes).
 
+Browser checks that unit tests cannot see — every pair of upcards loading, and
+every chance outcome landing where its own label says — live in
+`tools/check_explorer.mjs`:
+
+```
+cd docs && python3 -m http.server 8777 &
+node tools/check_explorer.mjs
+```
+
 ## Tests
 
 ```

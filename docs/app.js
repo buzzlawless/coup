@@ -136,21 +136,21 @@ function renderOutcomes(i, k) {
   const move = shard.moves[i][k];
   const mover = shard.info[i][10];
   $("meta").innerHTML += ` &nbsp;·&nbsp; <b>pick the draw</b>`;
-  $("moves").innerHTML = move[3]
-    .map(([p, idx], n) => ({ p, idx, n }))
-    .sort((a, b) => b.p - a.p)
-    .map(({ p, idx, n }) => {
+  // Each row carries the index it leads to, so sorting the display cannot
+  // put a row's label on another row's destination.
+  $("moves").innerHTML = [...move[3]]
+    .sort((a, b) => b[0] - a[0])
+    .map(([p, idx]) => {
       const ev = valueFor(idx, mover);
       return moveRow(`${drawnLabel(idx) || "no draw"}`, ev, false, true,
         ` <span class="tag">p = ${(p * 100).toFixed(2)}%</span>`)
-        .replace("<li ", `<li data-outcome="${n}" `);
+        .replace("<li ", `<li data-target="${idx}" `);
     }).join("") +
     `<li class="move" data-cancel="1"><span class="name">&larr; back</span></li>`;
 
-  $("moves").querySelectorAll("li[data-outcome]").forEach((el) => {
+  $("moves").querySelectorAll("li[data-target]").forEach((el) => {
     el.onclick = () => {
-      const sorted = [...move[3]].sort((a, b) => b[0] - a[0]);
-      const [, idx] = sorted[Number(el.dataset.outcome)];
+      const idx = Number(el.dataset.target);
       push(idx, `${shard.vocab[move[0]]} → ${drawnLabel(idx)}`);
     };
   });

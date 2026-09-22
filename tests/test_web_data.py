@@ -49,6 +49,17 @@ def test_the_page_never_rebuilds_a_file_name():
     assert '.sort().join("-")' not in app
 
 
+def test_a_chance_row_carries_its_own_destination():
+    """The draw picker sorts its rows, so a row must name where it leads.
+
+    Looking an index up in a re-sorted copy put one draw's label on another
+    draw's branch; carrying the target on the element removes the chance of it.
+    """
+    app = (OUT.parent / "app.js").read_text()
+    assert "data-target" in app
+    assert "dataset.outcome" not in app
+
+
 @pytest.mark.parametrize("pair", [(Card.AMBASSADOR, Card.CAPTAIN), (Card.DUKE, Card.DUKE)])
 def test_a_shard_covers_every_start_for_its_upcards(pair):
     data = json.loads(gzip.decompress((OUT / f"{slug(pair)}.json.gz").read_bytes()))
