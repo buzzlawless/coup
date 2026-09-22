@@ -63,6 +63,11 @@ await clickMove("exchange Duke");
 await clickMove("Exchange");
 await clickMove("pass");
 
+const picker = (await page.textContent("#meta")).replace(/\s+/g, " ");
+if (!/percentages are Player \d's equity after it/.test(picker)) {
+  failures++; console.log("  FAIL draw picker does not say whose equity it shows");
+}
+
 const labels = await page.$$eval("#moves li[data-target]",
   (ls) => ls.map((l) => l.querySelector(".name").textContent.replace(/\s+p =.*/, "").trim()));
 let matched = 0;

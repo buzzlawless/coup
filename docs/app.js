@@ -135,13 +135,19 @@ function renderMoves(i) {
 function renderOutcomes(i, k) {
   const move = shard.moves[i][k];
   const mover = shard.info[i][10];
-  $("meta").innerHTML += ` &nbsp;·&nbsp; <b>pick the draw</b>`;
+  // The draw is not the mover's choice, it is the deck's, and what matters is
+  // how it turns out for whoever is drawing -- so these are shown from the
+  // actor's side, not the mover's as everywhere else, and said so plainly.
+  const actor = shard.info[i][6] === "self" ? mover : 1 - mover;
+  $("meta").innerHTML +=
+    ` &nbsp;·&nbsp; <b>pick the draw</b> &mdash; percentages are ` +
+    `Player ${actor + 1}'s equity after it`;
   // Each row carries the index it leads to, so sorting the display cannot
   // put a row's label on another row's destination.
   $("moves").innerHTML = [...move[3]]
     .sort((a, b) => b[0] - a[0])
     .map(([p, idx]) => {
-      const ev = valueFor(idx, mover);
+      const ev = valueFor(idx, actor);
       return moveRow(`${drawnLabel(idx) || "no draw"}`, ev, false, true,
         ` <span class="tag">p = ${(p * 100).toFixed(2)}%</span>`)
         .replace("<li ", `<li data-target="${idx}" `);

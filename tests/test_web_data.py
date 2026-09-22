@@ -49,6 +49,14 @@ def test_the_page_never_rebuilds_a_file_name():
     assert '.sort().join("-")' not in app
 
 
+def test_the_draw_picker_says_whose_equity_it_shows():
+    """A draw is the deck's, not the mover's, so it is shown from the side of
+    whoever is drawing -- the opposite of every other panel, hence the label."""
+    app = (OUT.parent / "app.js").read_text()
+    assert "valueFor(idx, actor)" in app
+    assert "equity after it" in app
+
+
 def test_a_chance_row_carries_its_own_destination():
     """The draw picker sorts its rows, so a row must name where it leads.
 
