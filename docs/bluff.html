@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coup Bluffing Explorer</title>
+<style>
+  :root {
+    --bg: #fbfaf8; --panel: #ffffff; --line: #e3ded6; --ink: #1d1b18;
+    --dim: #6f6a62; --accent: #2f6f5e; --accent-soft: #e6f0ec;
+    --warn: #9a4a2f; --warn-soft: #f6e9e3; --chance: #6b4fa0; --chance-soft: #efeaf8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17161a; --panel: #201f24; --line: #34323a; --ink: #eceaf0;
+      --dim: #9c98a4; --accent: #6fbfa5; --accent-soft: #22352f;
+      --warn: #d98a68; --warn-soft: #3a2822; --chance: #b49ae8; --chance-soft: #2b2540;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+         padding: 24px 16px 64px; }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .sub { color: var(--dim); font-size: 13px; margin: 0 0 20px; }
+  .sub a { color: var(--accent); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+           padding: 16px; margin-bottom: 16px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 4px; }
+  select, input, button { font: inherit; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  input[type=number] { width: 68px; }
+  button { cursor: pointer; background: var(--accent); color: #fff; border-color: transparent; padding: 7px 14px; }
+  button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  button:disabled { opacity: .45; cursor: default; }
+  .err { color: var(--warn); font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .board { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .seat { flex: 1 1 200px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .seat.turn { border-color: var(--accent); background: var(--accent-soft); }
+  .seat .who { font-size: 12px; color: var(--dim); }
+  .seat .card { font-size: 17px; font-weight: 600; }
+  .seat .note { font-size: 12px; color: var(--dim); font-style: italic; }
+  .belief { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+  .belief .title { font-size: 12px; color: var(--dim); margin-bottom: 6px; }
+  .brow { display: grid; grid-template-columns: 110px 1fr 56px; gap: 10px; align-items: center;
+          font-size: 13px; padding: 1px 0; }
+  .brow.actual { font-weight: 600; }
+  .bbar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .bbar i { display: block; height: 100%; background: var(--chance); }
+  .num { font-variant-numeric: tabular-nums; text-align: right; }
+  .meta { font-size: 13px; color: var(--dim); margin-bottom: 12px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li.move { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line);
+            border-radius: 8px; margin-bottom: 6px; cursor: pointer; background: var(--bg); flex-wrap: wrap; }
+  li.move:hover { border-color: var(--accent); }
+  li.move.best { border-color: var(--accent); background: var(--accent-soft); }
+  li.move.static { cursor: default; }
+  .name { flex: 1 1 160px; }
+  .ev { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 64px; text-align: right; }
+  .bar { width: 84px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .tag { font-size: 11px; border-radius: 999px; padding: 1px 7px; border: 1px solid; margin-left: 6px; }
+  .tag.bluff { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
+  .tag.freq { color: var(--chance); border-color: var(--chance); }
+  .tag.zero { color: var(--dim); border-color: var(--line); }
+  .detail { flex-basis: 100%; font-size: 12px; color: var(--dim); padding-left: 2px; }
+  .over { font-size: 17px; font-weight: 600; color: var(--accent); }
+  ol.history { font-size: 13px; color: var(--dim); }
+  ol.history li { padding: 2px 0; }
+  footer { color: var(--dim); font-size: 12px; margin-top: 28px; }
+  footer p { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Coup Bluffing Explorer</h1>
+  <p class="sub">Heads-up, one influence each, no Ambassador. <b>P1 may bluff; P2 is honest and cannot
+    see P1's card.</b> Every choice is shown with its value under exact equilibrium play, and how often
+    an equilibrium strategy makes it. <a href="index.html">&larr; the no-bluffing explorer</a></p>
+
+  <div class="panel" id="setup">
+    <div class="row">
+      <div><label>P1 (bluffer) holds</label><select id="c0"></select></div>
+      <div><label>coins</label><input type="number" id="n0" value="0" min="0" max="12"></div>
+      <div><label>P2 (honest) holds</label><select id="c1"></select></div>
+      <div><label>coins</label><input type="number" id="n1" value="5" min="0" max="12"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div><label>Upcard</label><select id="d0"></select></div>
+      <div><label>Upcard</label><select id="d1"></select></div>
+      <div><label>Moves first</label><select id="first">
+        <option value="0">P1 (bluffer)</option><option value="1">P2 (honest)</option></select></div>
+      <div><button id="start">Explore</button></div>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="panel" id="game" hidden>
+    <div class="board" id="board"></div>
+    <div class="belief" id="belief"></div>
+    <div class="meta" id="meta"></div>
+    <ul id="moves"></ul>
+    <div class="row" style="margin-top:14px">
+      <button class="ghost" id="undo">Undo</button>
+      <button class="ghost" id="reset">New position</button>
+    </div>
+  </div>
+
+  <div class="panel" id="histPanel" hidden>
+    <label>Line so far</label>
+    <ol class="history" id="history"></ol>
+  </div>
+
+  <footer>
+    <p><b>How to read it.</b> At P1's decisions each option shows P1's win chance <i>given the card it
+      really holds</i>, and how often an equilibrium strategy plays it with that card &mdash; a mix under
+      100% is a bluffing frequency. Equilibria are not unique, so an option marked <i>unused, equally
+      good</i> is worth just as much. At P2's decisions each option shows P2's win chance <i>by its belief</i>,
+      the only thing P2 can compute, with the true figure beneath. The belief panel is what P2 has
+      inferred from everything P1 has claimed so far.</p>
+    <p><b>How it is solved.</b> P1's card matters only when a challenge is resolved, so each public
+      position carries the set of results P2 can guarantee, as a vector over P1's four possible cards.
+      That set does not depend on history; history enters only through P2's belief, applied as a
+      weighted minimum. Strategies come from small linear programs solved in the page.</p>
+  </footer>
+</main>
+<script src="bluff-core.js"></script>
+<script src="bluff.js"></script>
+</body>
+</html>

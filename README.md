@@ -286,6 +286,44 @@ cd docs && python3 -m http.server 8777 &
 node tools/check_explorer.mjs
 ```
 
+## Bluffing (one side)
+
+`coup/bluff.py` solves the same heads-up, one-card game (no Ambassador) with
+one change: **P1 may claim anything**, for actions and for blocks, while P2
+stays honest and cannot see P1's card. P1 sees everything. P2 remembers every
+claim and may challenge any of them; with one influence each, a challenge ends
+the game (P1 wins it if the claim was true).
+
+That makes it a zero-sum game where only one side is missing information, and
+P1's card matters only when a challenge is resolved. So each public position
+carries the set of results P2 can *guarantee*, as a vector over P1's four
+possible cards, and that set does not depend on how the position was reached.
+History matters only through P2's belief `p`, and the value is the smallest
+`p . y` over the set. The sets combine by simple rules: where P1 chooses,
+P2 must meet every option's guarantee at once (intersection); where P2
+chooses, it may mix (convex hull of the union); a challenge of a claim of card
+`c` is the unit vector `e_c`. Sweeping those rules to a fixpoint from both a
+pessimistic and an optimistic start, and checking that the two agree, handles
+lines that loop (`coup/polytope.py` does the geometry).
+
+Strategies come from small linear programs at each node. P1's mix splits
+P2's belief across its options, which is how bluffing frequencies appear; P2's
+mix decomposes the guarantee it is committed to. P2 challenges exactly when
+the chance the claim is a lie beats what passing is worth.
+
+Checks: if P2 is told P1's card, every one of 5,408 starts matches the honest
+tablebase; under any belief bluffing never scores below honest play; and the
+strategies found are an equilibrium along random lines. From the usual
+opening (no coins, P1 to move) bluffing only helps when P2 holds a Captain;
+with both upcards Contessa, for example, P1's chance goes from 2/9 to 5/9.
+
+`docs/bluff.html` explores it: pick the cards, upcards and coins, and every
+option shows its value and how often an equilibrium strategy plays it, with
+P2's belief updating as P1 claims. Regenerate its data (four files, one per
+card P2 holds, under 20 KB each) with `python -m analysis.build_bluff_data`;
+its browser check is `node tools/check_bluff_page.mjs`, and
+`node tools/check_bluff_core.cjs` checks the page's LP solver on the real data.
+
 ## Tests
 
 ```
