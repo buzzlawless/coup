@@ -65,6 +65,8 @@
   .tag.bluff { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
   .tag.freq { color: var(--chance); border-color: var(--chance); }
   .tag.zero { color: var(--dim); border-color: var(--line); }
+  .tag.off { color: var(--dim); border-color: var(--dim); border-style: dashed; }
+  li.move.off { border-style: dashed; }
   .detail { flex-basis: 100%; font-size: 12px; color: var(--dim); padding-left: 2px; }
   .over { font-size: 17px; font-weight: 600; color: var(--accent); }
   ol.history { font-size: 13px; color: var(--dim); }
@@ -116,8 +118,10 @@
   <footer>
     <p><b>How to read it.</b> At P1's decisions each option shows P1's win chance <i>given the card it
       really holds</i>, and how often an equilibrium strategy plays it with that card &mdash; a mix under
-      100% is a bluffing frequency. Equilibria are not unique, so an option marked <i>unused, equally
-      good</i> is worth just as much. At P2's decisions each option shows P2's win chance <i>by its belief</i>,
+      100% is a bluffing frequency. Equilibria are not unique, so an option marked <i>equally good</i>
+      is worth just as much. A P1 option marked <i>leaves equilibrium</i> is one its real card never
+      makes there: P2's belief follows the equilibrium, so it may then rule that card out, but P2's
+      strategy caps what every card can win, so leaving never gains P1 anything. At P2's decisions each option shows P2's win chance <i>by its belief</i>,
       the only thing P2 can compute, with the true figure beneath. The belief panel is what P2 has
       inferred from everything P1 has claimed so far.</p>
     <p><b>How it is solved.</b> P1's card matters only when a challenge is resolved, so each public

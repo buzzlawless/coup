@@ -6,7 +6,8 @@
  *
  * Plays random lines on all four data files and checks, at every decision,
  * that what the page shows is an equilibrium: every option the mover plays is
- * worth exactly the position's value to it, and none is worth more.
+ * worth exactly the position's value to it, and none is worth more; and that
+ * P2 only ever rules out P1's real card after P1 has left the equilibrium.
  */
 import { chromium } from "/opt/node22/lib/node_modules/playwright/index.mjs";
 
@@ -76,12 +77,14 @@ for (const p2 of CARDS) {
       if (CARDS.every((c) => hand.filter((x) => x === c).length <= 3)) break;
     }
     await restart(hand[0], hand[1], hand[2], hand[3], rand(8), rand(8), rand(2));
-    let promised = null;
+    let promised = null, departed = false;
     for (let step = 0; step < 150; step++) {
       s = await read();
       // what the last move promised P1 is what P1 is then worth
       if (promised !== null) check(Math.abs(s.p1 - promised) < 1e-6, `promised ${promised}, now ${s.p1}: ${s.text}`);
       if (s.over) break;
+      // P2 can only rule out P1's real card after P1 leaves the equilibrium
+      check(departed || !/no longer thinks/.test(s.text), `card ruled out on the equilibrium path: ${s.text}`);
       const value = s.p2turn ? Number(s.b[1]) : Number(s.b[0]);
       const played = s.moves.filter((m) => m.played);
       check(played.length > 0, `no move played: ${s.text}`);
@@ -96,6 +99,7 @@ for (const p2 of CARDS) {
       const pool = rand(4) === 0 ? s.moves : played;
       const pick = s.moves.indexOf(pool[rand(pool.length)]);
       promised = s.moves[pick].p1;
+      if (!s.p2turn && !s.moves[pick].played) departed = true;
       await (await page.$$("#moves li.move"))[pick].click();
     }
     games++;

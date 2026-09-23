@@ -192,7 +192,7 @@ function renderBelief() {
 function mixLine(sigma, p) {
   const parts = CARDS.map((c, t) => (p[t] > EPS && sigma[t] > EPS ? `${NAME[c]} ${pct(sigma[t])}` : null))
     .filter(Boolean);
-  return parts.length ? `played by: ${parts.join(" · ")}` : "played by no card — off the equilibrium path";
+  return parts.length ? `Played by: ${parts.join(" · ")}` : "Played by no card — off the equilibrium path";
 }
 
 function beliefLine(b) {
@@ -241,8 +241,7 @@ function renderMoves() {
   let p1Value, note, p2Value = 1 - Core.dot(cur.p, cur.y);
 
   // an option the equilibrium leaves unused can still be worth as much
-  const idle = (v) => (v >= p1Value - 1e-9 ? `<span class="tag zero">unused, equally good</span>`
-                                         : `<span class="tag zero">not played</span>`);
+  const card = NAME[setup.p1];
   if (kind === "1") {
     const steps = Core.p1Step(data, cur.i, pw, cur.y);
     p1Value = Math.max(...steps.map((s) => s.target[t]));
@@ -251,10 +250,22 @@ function renderMoves() {
       const played = s.sigma[t] > EPS;
       let name = s.label;
       if (isBluff(s.label)) name += `<span class="tag bluff">bluff</span>`;
-      name += played ? `<span class="tag freq">plays ${pct(s.sigma[t])}</span>` : idle(s.target[t]);
-      const detail = `${mixLine(s.sigma, pw)}. P2 then believes ${beliefLine(s.belief)}` +
+      if (played) {
+        name += `<span class="tag freq">plays ${pct(s.sigma[t])}</span>`;
+      } else {
+        name += `<span class="tag off">leaves equilibrium</span>`;
+        if (s.target[t] >= p1Value - 1e-9) name += `<span class="tag zero">equally good</span>`;
+      }
+      let detail = `${mixLine(s.sigma, pw)}. P2 then believes ${beliefLine(s.belief)}` +
         (s.onPath ? "" : " (the belief that keeps this move unprofitable)") + ".";
-      items.push([li(played ? "best" : "", name, prob(s.target[t]), s.target[t], detail, s.target[t]),
+      if (!played && s.onPath) {
+        detail = `<b>Leaves the equilibrium:</b> a ${card} never makes this move here, so P2 ` +
+          `would conclude P1 cannot hold one. ` + detail;
+      } else if (!played) {
+        detail = `<b>Leaves the equilibrium:</b> no card makes this move here. P2 then believes ` +
+          `${beliefLine(s.belief)} (the belief that keeps this move unprofitable).`;
+      }
+      items.push([li(played ? "best" : "off", name, prob(s.target[t]), s.target[t], detail, s.target[t]),
                   () => choose(s, 0)]);
     }
   } else {
@@ -271,7 +282,7 @@ function renderMoves() {
       const played = s.mu > EPS;
       const label = s.child === -1 ? "challenge" : s.label;
       const name = label + (played ? `<span class="tag freq">plays ${pct(s.mu)}</span>`
-        : (ev >= p2Value - 1e-9 ? `<span class="tag zero">unused, equally good</span>`
+        : (ev >= p2Value - 1e-9 ? `<span class="tag zero">equally good</span>`
                                 : `<span class="tag zero">not played</span>`));
       const detail = `P1 really holds ${NAME[setup.p1]}, so P2 actually wins ${prob(1 - s.target[t])}.`;
       items.push([li(played ? "best" : "", name, prob(ev), ev, detail, s.target[t]), () => choose(s, 1)]);
@@ -279,7 +290,9 @@ function renderMoves() {
   }
   $("meta").innerHTML = `${phaseText(info)}. P1 holding ${NAME[setup.p1]} wins with probability ` +
     `<b>${prob(p1Value)}</b>; by its belief P2 expects to win <b>${prob(p2Value)}</b>.` +
-    (fooled ? ` P2 has ruled out P1's real card, so P2's expectation is wrong.` : "") + note;
+    (fooled ? ` P1 has made a move its real card never makes in equilibrium, so P2 no longer thinks ` +
+      `that card possible. P2's strategy still limits what every card can win, so the move cannot ` +
+      `gain P1 anything.` : "") + note;
   $("meta").dataset.p1 = p1Value;
   for (const [el, go] of items) { el.onclick = go; ul.appendChild(el); }
 }
